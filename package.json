@@ -1,0 +1,38 @@
+{
+  "name": "playcraft",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "path-exists lib/scripts/install-deps.js && node lib/scripts/install-deps.js || ts-node src/scripts/install-deps.ts",
+    "clean": "rm -rf lib",
+    "build:server": "tsc",
+    "build:web": "./build-web.sh",
+    "build": "npm run clean && npm run build:server && npm run build:web",
+    "dev": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "Sudharsan Selvaraj <sudharsanselvaraj.c@gmail.com>",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/playcraft.git"
+  },
+  "description": "Playcraft is a platform for crafting playwright tests",
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^24.0.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsdom": "^26.1.0",
+    "path-exists-cli": "^2.0.0",
+    "playwright": "^1.53.0"
+  }
+}
