@@ -1,8 +1,13 @@
-import React from "react";
-import { Home } from "./pages/Home";
+import '@mantine/core/styles.css';
 
-const App: React.FC = () => {
-	return <Home />;
-};
+import { MantineProvider } from '@mantine/core';
+import { Router } from './Router';
+import { theme } from './theme';
 
-export default App;
+export default function App() {
+  return (
+    <MantineProvider theme={theme}>
+      <Router />
+    </MantineProvider>
+  );
+}

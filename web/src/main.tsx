@@ -1,15 +1,4 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import "./styles/tailwind.css";
-import "./common/i18n";
+import ReactDOM from 'react-dom/client';
+import App from './App';
 
-const rootElement = document.querySelector("#root") as Element;
-if (!rootElement.innerHTML) {
-	const root = ReactDOM.createRoot(rootElement);
-	root.render(
-		<React.StrictMode>
-			<App />
-		</React.StrictMode>
-	);
-}
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
