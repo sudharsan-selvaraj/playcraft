@@ -68,3 +68,24 @@ export async function launchBrowser() {
 
   return page;
 }
+
+export function patchHeaders(headers: Record<string, string>, serverUrl: string) {
+  let isHeaderUpdated = false;
+  const frameAncestorsRegex = /frame-ancestors\s+[^;]+;/gi;
+  if (
+    headers["content-security-policy"] &&
+    frameAncestorsRegex.test(headers["content-security-policy"])
+  ) {
+    headers["content-security-policy"] = headers["content-security-policy"].replace(
+      frameAncestorsRegex,
+      "frame-ancestors *;"
+    );
+    isHeaderUpdated = true;
+  }
+
+  if (headers["x-frame-options"]) {
+    delete headers["x-frame-options"];
+    isHeaderUpdated = true;
+  }
+  return isHeaderUpdated;
+}

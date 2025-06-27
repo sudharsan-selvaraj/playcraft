@@ -2,8 +2,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Globe, RefreshCw, RulerDimensionLine, SquareDashedMousePointer } from 'lucide-react';
 import { ActionIcon, Button, Group, Menu, Modal, NumberInput, rem, TextInput, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { navigateToUrl } from '../apiService';
 import { customColors } from '../theme';
-
 
 const DEVICES = [
   { name: 'Responsive', width: '100%', height: '100%' },
@@ -85,13 +85,18 @@ export function AutomationFrame() {
     setInputUrl(e.target.value);
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       let formattedUrl = inputUrl;
       if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = 'https://' + formattedUrl;
       }
-      goToUrl(formattedUrl);
+      setLoading(true);
+      const result = await navigateToUrl(formattedUrl);
+      setLoading(false);
+      if (result.error) {
+        console.log(result.error);
+      }
     }
   };
 
@@ -393,7 +398,7 @@ export function AutomationFrame() {
           ref={iframeRef}
           src={url}
           id="aut-frame"
-          name='aut-frame'
+          name="aut-frame"
           style={{
             boxShadow:
               '0 4px 32px 0 rgba(60, 60, 60, 0.10), 0 1.5px 8px 0 rgba(224, 201, 127, 0.10) inset',
