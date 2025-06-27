@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useComputedColorScheme } from '@mantine/core';
 import { customColors } from '../theme';
 
+
 export function ResizableDivider({
   left,
   right,
@@ -107,7 +108,7 @@ export function ResizableDivider({
         <div
           style={{
             width: 16,
-            margin: '0 -4px',
+            margin: '0 -8px',
             cursor: 'col-resize',
             zIndex: 1,
             borderRadius: 4,

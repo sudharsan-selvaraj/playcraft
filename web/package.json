@@ -22,13 +22,13 @@
   "dependencies": {
     "@mantine/core": "8.1.2",
     "@mantine/hooks": "8.1.2",
+    "@monaco-editor/react": "^4.7.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
-    "lucide-react": "^0.518.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
     "@storybook/react": "^8.6.12",
     "@storybook/react-vite": "^8.6.12",
@@ -46,6 +46,7 @@
     "eslint-plugin-react": "^7.37.5",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^26.1.0",
+    "lucide-react": "^0.518.0",
     "postcss": "^8.5.5",
     "postcss-preset-mantine": "1.17.0",
     "postcss-simple-vars": "^7.0.1",

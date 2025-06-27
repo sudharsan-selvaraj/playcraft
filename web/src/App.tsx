@@ -1,15 +1,13 @@
 import '@mantine/core/styles.css';
 
 import { MantineProvider } from '@mantine/core';
-import { ResizableDividerDemoPage } from './pages/ResizableDividerDemo.page';
-import { Router } from './Router';
+import { PlayCraftPage } from './pages/Platcraft.page';
 import { theme } from './theme';
 
 export default function App() {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
-      {/* <Router /> */}
-      <ResizableDividerDemoPage />
+    <MantineProvider theme={theme} defaultColorScheme="dark">
+      <PlayCraftPage />
     </MantineProvider>
   );
 }

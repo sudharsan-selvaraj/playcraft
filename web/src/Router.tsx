@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './pages/Home.page';
-import { ResizableDividerDemoPage } from './pages/ResizableDividerDemo.page';
+import { PlayCraftPage } from './pages/Platcraft.page';
 
 const router = createBrowserRouter([
   {
@@ -9,7 +9,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/resizable-divider',
-    element: <ResizableDividerDemoPage />,
+    element: <PlayCraftPage />,
   },
 ]);
 

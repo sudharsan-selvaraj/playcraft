@@ -30,7 +30,7 @@ const DEVICES = [
 ];
 
 export function AutomationFrame() {
-  const [url, setUrl] = useState((window as any).APP_URL || 'https://www.example.com');
+  const [url, setUrl] = useState((window as any).APP_URL || 'https://www.playwright.dev');
   const [inputUrl, setInputUrl] = useState(url);
   const [history, setHistory] = useState([url]);
   const [historyIndex, setHistoryIndex] = useState(0);
