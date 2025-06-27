@@ -1,7 +1,16 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { IconArrowLeft, IconArrowRight, IconDeviceDesktop, IconReload } from '@tabler/icons-react';
-import { ActionIcon, Button, Group, Menu, Modal, NumberInput, rem, TextInput } from '@mantine/core';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Globe,
+  RefreshCw,
+  RulerDimensionLine,
+  SquareDashedMousePointer,
+} from 'lucide-react';
+import { ActionIcon, Button, Group, Menu, Modal, NumberInput, rem, TextInput, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { customColors } from '../theme';
+
 
 const DEVICES = [
   { name: 'Responsive', width: '100%', height: '100%' },
@@ -43,9 +52,12 @@ export function AutomationFrame() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  const colorScheme = useComputedColorScheme('light') as 'light' | 'dark';
+  const [loading, setLoading] = useState(true);
 
   const goToUrl = (newUrl: string) => {
     setUrl(newUrl);
+    setLoading(true);
     const newHistory = history.slice(0, historyIndex + 1).concat(newUrl);
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
@@ -56,6 +68,7 @@ export function AutomationFrame() {
       setHistoryIndex(historyIndex - 1);
       setUrl(history[historyIndex - 1]);
       setInputUrl(history[historyIndex - 1]);
+      setLoading(true);
     }
   };
 
@@ -64,12 +77,14 @@ export function AutomationFrame() {
       setHistoryIndex(historyIndex + 1);
       setUrl(history[historyIndex + 1]);
       setInputUrl(history[historyIndex + 1]);
+      setLoading(true);
     }
   };
 
   const refresh = () => {
     if (iframeRef.current) {
       iframeRef.current.src = url;
+      setLoading(true);
     }
   };
 
@@ -155,7 +170,7 @@ export function AutomationFrame() {
       style={{
         height: '100%',
         width: '100%',
-        background: '#fff', // soft yellow-white gradient
+        background: customColors.background[colorScheme],
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -170,15 +185,15 @@ export function AutomationFrame() {
           width: '100%',
           maxWidth: 1200,
           margin: '0 auto 10px auto',
-          background: 'var(--mantine-color-gray-3, #e6fcf5)',
-          borderRadius: 8,
+          background: customColors.secondaryBg[colorScheme],
+          borderRadius: 0,
           boxShadow: '0 1px 4px 0 rgba(60,60,60,0.04)',
-          border: '1px solid var(--mantine-color-gray-3, #dee2e6)',
+          border: `1px solid ${customColors.border[colorScheme]}`,
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          minHeight: 48,
-          padding: '0.5rem 1rem',
+          minHeight: 50,
+          padding: '0.25rem 0.5rem',
           boxSizing: 'border-box',
           position: 'sticky',
           top: 0,
@@ -197,11 +212,11 @@ export function AutomationFrame() {
               background: 'transparent',
               color:
                 historyIndex === 0
-                  ? 'var(--mantine-color-gray-5, #adb5bd)'
-                  : 'var(--mantine-color-dark-6, #212529)',
+                  ? customColors.iconDisabled[colorScheme]
+                  : customColors.icon[colorScheme],
             }}
           >
-            <IconArrowLeft size={18} />
+            <ArrowLeft size={18} />
           </ActionIcon>
           <ActionIcon
             variant="subtle"
@@ -214,11 +229,11 @@ export function AutomationFrame() {
               background: 'transparent',
               color:
                 historyIndex === history.length - 1
-                  ? 'var(--mantine-color-gray-5, #adb5bd)'
-                  : 'var(--mantine-color-dark-6, #212529)',
+                  ? customColors.iconDisabled[colorScheme]
+                  : customColors.icon[colorScheme],
             }}
           >
-            <IconArrowRight size={18} />
+            <ArrowRight size={18} />
           </ActionIcon>
           <ActionIcon
             variant="subtle"
@@ -227,55 +242,60 @@ export function AutomationFrame() {
             style={{
               borderRadius: 8,
               transition: 'background 0.15s',
-              color: 'var(--mantine-color-dark-6, #212529)',
+              color: customColors.icon[colorScheme],
             }}
           >
-            <IconReload size={18} />
+            <RefreshCw size={18} />
           </ActionIcon>
         </Group>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
           <TextInput
+            type="url"
             value={inputUrl}
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             placeholder="Enter URL"
+            leftSection={<Globe size={14} style={{ color: customColors.icon[colorScheme] }} />}
             style={{
               flex: 1,
               minWidth: rem(200),
               boxShadow: 'none',
-              fontSize: 16,
-              color: '#222',
+              fontSize: 20,
+              color: customColors.icon[colorScheme],
               outline: 'none',
               background: 'transparent',
             }}
-            size="md"
-            radius="md"
+            size={'sm'}
+            radius={8}
             autoComplete="off"
-            onFocus={(e) => {
-              e.target.style.boxShadow = '0 0 0 2px #ffe066';
-              e.target.style.border = '1.5px solid #ffe066';
-            }}
-            onBlur={(e) => {
-              e.target.style.boxShadow = 'none';
-              e.target.style.border = '1.5px solid #d3d6db';
-            }}
           />
           <Menu shadow="md" width={220}>
             <Menu.Target>
               <ActionIcon
-                variant="subtle"
-                size={32}
+                variant="light"
+                radius={8}
+                size={36}
                 style={{
                   marginLeft: 4,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background 0.15s',
-                  color: 'var(--mantine-color-dark-6, #212529)',
+                  border: `1px solid ${customColors.border[colorScheme]}`,
+                  background: customColors.secondaryBg[colorScheme],
+                  color: customColors.icon[colorScheme],
+                  boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
+                  transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = customColors.iconBg[colorScheme];
+                  e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
+                  e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
+                  e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
+                  e.currentTarget.style.borderColor = customColors.border[colorScheme];
                 }}
               >
-                <IconDeviceDesktop size={20} />
+                <RulerDimensionLine size={20} />
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
@@ -296,6 +316,32 @@ export function AutomationFrame() {
               ))}
             </Menu.Dropdown>
           </Menu>
+          <ActionIcon
+            variant="light"
+            radius={8}
+            size={36}
+            style={{
+              marginLeft: 4,
+              border: `1px solid ${customColors.border[colorScheme]}`,
+              background: customColors.secondaryBg[colorScheme],
+              color: customColors.icon[colorScheme],
+              boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
+              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
+              cursor: 'pointer',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = customColors.iconBg[colorScheme];
+              e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
+              e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
+              e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
+              e.currentTarget.style.borderColor = customColors.border[colorScheme];
+            }}
+          >
+            <SquareDashedMousePointer size={20} />
+          </ActionIcon>
         </div>
       </div>
       {/* Device viewport container - resizes with device */}
@@ -315,17 +361,53 @@ export function AutomationFrame() {
           position: 'relative',
         }}
       >
+        {/* Loader overlay */}
+        {loading && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(255,255,255,0.7)',
+              zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              className="loader"
+              style={{
+                border: '4px solid #f3f3f3',
+                borderTop: '4px solid #555',
+                borderRadius: '50%',
+                width: 40,
+                height: 40,
+                animation: 'spin 1s linear infinite',
+              }}
+            />
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        )}
         <iframe
           ref={iframeRef}
           src={url}
-          title="Automation Frame"
+          id="aut-frame"
+          name='aut-frame'
           style={{
             boxShadow:
               '0 4px 32px 0 rgba(60, 60, 60, 0.10), 0 1.5px 8px 0 rgba(224, 201, 127, 0.10) inset',
-            border: '1.5px solid var(--mantine-color-gray-3, #dee2e6)',
+            border: `1px solid ${customColors.border[colorScheme]}`,
             width: iframeWidth,
             height: iframeHeight,
-            background: 'var(--mantine-color-white, #fff)',
+            background: customColors.background[colorScheme],
             borderRadius: 0,
             transition: 'background 0.2s',
             display: 'block',
@@ -336,6 +418,7 @@ export function AutomationFrame() {
             marginTop: 0,
           }}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          onLoad={() => setLoading(false)}
         />
       </div>
       <Modal opened={customOpen} onClose={closeCustom} title="Custom Resolution" centered>

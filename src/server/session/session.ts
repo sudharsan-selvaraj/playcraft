@@ -12,7 +12,20 @@ export class Session {
     this._id = crypto.randomUUID();
     this.page.addInitScript(`
       if(window.self !== window.top) {
-          window.sudharsan = "How are you?"
+        window.addEventListener('DOMContentLoaded', function() {
+          let lastHighlighted;
+          document.body.addEventListener('mousemove', function(e) {
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            if (el && el !== lastHighlighted) {
+              if (lastHighlighted) {
+                lastHighlighted.style.outline = lastHighlighted.__oldOutline || '';
+              }
+              el.__oldOutline = el.style.outline;
+              el.style.outline = '2px solid red';
+              lastHighlighted = el;
+            }
+          });
+        });
       }
     `);
     this.page.route("**/*", this.onRequestMade.bind(this));
