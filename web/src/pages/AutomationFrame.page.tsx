@@ -1,12 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Globe,
-  RefreshCw,
-  RulerDimensionLine,
-  SquareDashedMousePointer,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Globe, RefreshCw, RulerDimensionLine, SquareDashedMousePointer } from 'lucide-react';
 import { ActionIcon, Button, Group, Menu, Modal, NumberInput, rem, TextInput, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { customColors } from '../theme';
@@ -37,7 +30,7 @@ const DEVICES = [
 ];
 
 export function AutomationFrame() {
-  const [url, setUrl] = useState('https://www.example.com');
+  const [url, setUrl] = useState((window as any).APP_URL || 'https://www.example.com');
   const [inputUrl, setInputUrl] = useState(url);
   const [history, setHistory] = useState([url]);
   const [historyIndex, setHistoryIndex] = useState(0);

@@ -1,14 +1,12 @@
 import { app } from "./app";
+import { config } from "../config";
 // import { createServer } from "http";
 // import { Server as SocketIOServer } from "socket.io";
 
-export const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-export const getServerUrl = () => `http://localhost:${PORT}`;
-
 export function startServer(): Promise<void> {
   return new Promise((resolve) => {
-    app.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
+    app.listen(config.port, () => {
+      console.log(`Server started on ${config.serverUrl}`);
       resolve();
     });
   });

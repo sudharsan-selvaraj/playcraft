@@ -71,10 +71,11 @@
   "include": [
     "./src/**/*",
     "./test/**/*"
-  ],
+, "injected"  ],
   "exclude": [
     "node_modules",
     "typings",
-    "./src/public/*"
+    "./src/public/*",
+    "./injected/*"
   ]
 }

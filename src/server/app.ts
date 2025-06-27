@@ -12,16 +12,18 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(cors());
 
-// API routes first
 app.use("/api", router);
 
-// Serve static files from lib/public
 app.use(express.static(path.join(__dirname, "../../lib/public")));
 
-// Handle SPA routing - serve index.html for all non-api routes
 app.get("/", (req, res) => {
   console.log(req);
   res.sendFile(getIndexHtmlPath());
+});
+
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Unexpected error:", err);
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
 export { app };

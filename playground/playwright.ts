@@ -21,6 +21,8 @@ import { chromium } from "playwright";
     }
   });
   await frame?.goto("https://www.playwright.dev/");
+
+  console.log(frame?.locator("xpath=.//*[@id='repo-content-pjax-container']"));
   await context.tracing.stop();
   await page.close();
   await browser.close();
