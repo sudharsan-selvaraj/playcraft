@@ -1,9 +1,10 @@
-import React from 'react';
-import MonacoEditor from '@monaco-editor/react';
+import React, { useState } from 'react';
 import { Play, SunMoon } from 'lucide-react';
 import { ActionIcon, Tabs, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
 import PlayCraftLogoDark from '../assets/logo_dark.png';
 import PlayCraftLogoLight from '../assets/logo_light.png';
+import { CodeEditor } from '../components/CodeEditor';
+import TerminalLog from '../components/TerminalLog';
 import { customColors } from '../theme';
 
 const DEFAULT_CODE = `
@@ -18,38 +19,11 @@ const logo = (colorScheme: 'dark' | 'light') => {
   return <img src={img} alt="PlayCraft Logo" width={width} height={'auto'} />;
 };
 
-// Custom TerminalLog component
-function TerminalLog({ logs }: { logs: React.ReactNode[] }) {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#181A1B',
-        color: '#C9D1D9',
-        fontFamily: 'Fira Mono, monospace',
-        fontSize: 12,
-        padding: '16px',
-        overflowY: 'auto',
-        minHeight: 120,
-        maxHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}
-    >
-      {logs.map((line, idx) => (
-        <div key={idx} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {line}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function CodePanelPage() {
   const colorScheme = useComputedColorScheme('dark');
   const { colorScheme: mantineColorScheme, setColorScheme } = useMantineColorScheme();
+  const [code, setCode] = useState(DEFAULT_CODE.trim());
+
   return (
     <div
       style={{
@@ -99,53 +73,14 @@ export function CodePanelPage() {
           flexDirection: 'column',
         }}
       >
-        <div
-          style={{
-            minHeight: '50%',
-            padding: '10px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
+        <CodeEditor
+          code={code}
+          onCodeChange={(value) => setCode(value ?? '')}
+          colorScheme={colorScheme}
+          onPlayClick={() => {
+            /* TODO: handle play click */
           }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'end',
-            }}
-          >
-            <ActionIcon variant="transparent" size={20} style={{ color: '#44BA4A' }}>
-              <Play fill="currentColor" />
-            </ActionIcon>
-          </div>
-          <div
-            style={{
-              border: `1px solid ${customColors.border[colorScheme]}`,
-              width: '100%',
-              height: '100%',
-            }}
-          >
-            <MonacoEditor
-              height="100%"
-              defaultLanguage="javascript"
-              defaultValue={DEFAULT_CODE.trim()}
-              theme={colorScheme === 'dark' ? 'vs-dark' : 'light'}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                fontFamily: 'Fira Mono, monospace',
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                lineDecorationsWidth: 5,
-                lineHeight: 20,
-                wordWrap: 'on',
-              }}
-            />
-          </div>
-        </div>
-
+        />
         {/* Tabs for Terminal, Mock, Network, Console */}
         <div
           style={{
