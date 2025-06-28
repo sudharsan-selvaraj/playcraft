@@ -1,10 +1,26 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Globe, RefreshCw, RulerDimensionLine, SquareDashedMousePointer } from 'lucide-react';
-import { ActionIcon, Button, Group, Menu, Modal, NumberInput, rem, TextInput, useComputedColorScheme } from '@mantine/core';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Globe,
+  RefreshCw,
+  RulerDimensionLine,
+  SquareDashedMousePointer,
+} from 'lucide-react';
+import {
+  ActionIcon,
+  Button,
+  Group,
+  Menu,
+  Modal,
+  NumberInput,
+  rem,
+  TextInput,
+  useComputedColorScheme,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { navigateToUrl } from '../apiService';
+import { navigateToUrl, testLocator } from '../apiService';
 import { customColors } from '../theme';
-
 
 const DEVICES = [
   { name: 'Responsive', width: '100%', height: '100%' },
@@ -31,7 +47,7 @@ const DEVICES = [
 ];
 
 export function AutomationFrame() {
-  const [url, setUrl] = useState((window as any).APP_URL || 'https://www.playwright.dev');
+  const [url, setUrl] = useState((window as any).APP_URL || 'about:blank');
   const [inputUrl, setInputUrl] = useState(url);
   const [history, setHistory] = useState([url]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -48,21 +64,45 @@ export function AutomationFrame() {
   });
   const colorScheme = useComputedColorScheme('light') as 'light' | 'dark';
   const [loading, setLoading] = useState(true);
+  const [locatorInput, setLocatorInput] = useState('');
+  const [showLocatorInput, setShowLocatorInput] = useState(false);
+  const [locatorCount, setLocatorCount] = useState<number | null>(null);
 
-  const goToUrl = (newUrl: string) => {
-    setUrl(newUrl);
-    setLoading(true);
-    const newHistory = history.slice(0, historyIndex + 1).concat(newUrl);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
+  useEffect(() => {
+    function handleIframeMessage(event: MessageEvent) {
+      if (event.data.from === 'playcraft') {
+        if (event.data.action === 'frame-loaded') {
+          iframeRef?.current?.contentWindow?.postMessage(
+            { action: showLocatorInput ? 'enable-locator' : 'disable-locator' },
+            '*'
+          );
+          setInputUrl(event.data.url);
+          const newHistory = history.slice(0, historyIndex + 1).concat(event.data.url);
+          setHistory(newHistory);
+          setHistoryIndex(newHistory.length - 1);
+        } else if (event.data.action === 'locator') {
+          setLocatorInput(event.data.locator);
+        } else if (event.data.action === 'navigation' && typeof event.data.url === 'string') {
+          // setUrl(event.data.url);
+          setInputUrl(event.data.url);
+          const newHistory = history.slice(0, historyIndex + 1).concat(event.data.url);
+          setHistory(newHistory);
+          setHistoryIndex(newHistory.length - 1);
+        }
+      }
+    }
+    window.addEventListener('message', handleIframeMessage);
+    return () => {
+      window.removeEventListener('message', handleIframeMessage);
+    };
+  }, [showLocatorInput, historyIndex, history]);
 
   const goBack = () => {
     if (historyIndex > 0) {
       setHistoryIndex(historyIndex - 1);
       setUrl(history[historyIndex - 1]);
       setInputUrl(history[historyIndex - 1]);
-      setLoading(true);
+      refresh(history[historyIndex - 1]);
     }
   };
 
@@ -71,13 +111,13 @@ export function AutomationFrame() {
       setHistoryIndex(historyIndex + 1);
       setUrl(history[historyIndex + 1]);
       setInputUrl(history[historyIndex + 1]);
-      setLoading(true);
+      refresh(history[historyIndex + 1]);
     }
   };
 
-  const refresh = () => {
+  const refresh = (_url?: any) => {
     if (iframeRef.current) {
-      iframeRef.current.src = url;
+      iframeRef.current.src = _url && typeof _url === 'string' ? _url : url;
       setLoading(true);
     }
   };
@@ -321,28 +361,169 @@ export function AutomationFrame() {
             size={36}
             style={{
               marginLeft: 4,
-              border: `1px solid ${customColors.border[colorScheme]}`,
-              background: customColors.secondaryBg[colorScheme],
-              color: customColors.icon[colorScheme],
-              boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
+              border: `1px solid ${showLocatorInput ? customColors.primary[colorScheme] : customColors.border[colorScheme]}`,
+              background: showLocatorInput
+                ? customColors.primary[colorScheme]
+                : customColors.secondaryBg[colorScheme],
+              color: showLocatorInput ? '#fff' : customColors.icon[colorScheme],
+              boxShadow: showLocatorInput
+                ? '0 2px 8px 0 rgba(9,105,218,0.18)'
+                : '0 1px 4px 0 rgba(60,60,60,0.08)',
               transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
               cursor: 'pointer',
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.background = customColors.iconBg[colorScheme];
-              e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
-              e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+              if (!showLocatorInput) {
+                e.currentTarget.style.background = customColors.iconBg[colorScheme];
+                e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
+                e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+              }
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
-              e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
-              e.currentTarget.style.borderColor = customColors.border[colorScheme];
+              if (!showLocatorInput) {
+                e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
+                e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
+                e.currentTarget.style.borderColor = customColors.border[colorScheme];
+              }
+            }}
+            onClick={() => {
+              setShowLocatorInput((v) => {
+                const next = !v;
+                if (iframeRef.current && iframeRef.current.contentWindow) {
+                  iframeRef.current.contentWindow.postMessage(
+                    { action: next ? 'enable-locator' : 'disable-locator' },
+                    '*'
+                  );
+                }
+                return next;
+              });
             }}
           >
             <SquareDashedMousePointer size={20} />
           </ActionIcon>
         </div>
       </div>
+      {showLocatorInput && (
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 1200,
+            margin: '0 auto 18px auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              width: '100%',
+              background: colorScheme === 'dark' ? 'rgba(40,40,48,0.95)' : 'rgba(255,255,255,0.95)',
+              boxShadow:
+                colorScheme === 'dark'
+                  ? '0 2px 12px 0 rgba(0,0,0,0.18)'
+                  : '0 2px 12px 0 rgba(60,60,60,0.10)',
+              borderRadius: 0,
+              padding: '0.25rem 0.5rem',
+              gap: 0,
+              border: `1.5px solid ${customColors.border[colorScheme]}`,
+              transition: 'box-shadow 0.18s',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
+              <TextInput
+                value={locatorInput}
+                onChange={(e) => setLocatorInput(e.currentTarget.value)}
+                placeholder="Paste the locator here to validate"
+                style={{
+                  flex: 1,
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: 'transparent',
+                }}
+                size="sm"
+                radius={0}
+                autoComplete="off"
+                styles={{
+                  input: {
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    boxShadow: 'none',
+                    height: 32,
+                    paddingLeft: 12,
+                  },
+                  root: { flex: 1 },
+                }}
+              />
+              <Button
+                style={{
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  height: 32,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  background: customColors.primary[colorScheme],
+                  color: '#fff',
+                  boxShadow: 'none',
+                  transition: 'background 0.18s, box-shadow 0.18s',
+                  padding: '0 18px',
+                  border: 'none',
+                  marginLeft: 0,
+                }}
+                size="sm"
+                radius={0}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = colorScheme === 'dark' ? '#388bfd' : '#175ddc';
+                  e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.10)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = customColors.primary[colorScheme];
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                onClick={async () => {
+                  try {
+                    const result = await testLocator(locatorInput);
+                    setLocatorCount(typeof result.result === 'number' ? result.result : null);
+                    console.log('Locator test result:', result);
+                  } catch (err) {
+                    setLocatorCount(null);
+                    console.error('Locator test error:', err);
+                  }
+                }}
+              >
+                Test Locator
+              </Button>
+            </div>
+          </div>
+          {locatorCount !== null && (
+            <div
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                fontSize: 12,
+                color: customColors.icon[colorScheme],
+                marginTop: 4,
+                marginLeft: 2,
+              }}
+            >
+              Found {locatorCount} matching element{locatorCount === 1 ? '' : 's'}
+            </div>
+          )}
+        </div>
+      )}
       {/* Device viewport container - resizes with device */}
       <div
         ref={containerRef}
@@ -418,7 +599,7 @@ export function AutomationFrame() {
             maxHeight: '100%',
             maxWidth: '100%',
           }}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
           onLoad={() => setLoading(false)}
         />
       </div>

@@ -26,7 +26,7 @@ export function escapeForAttributeSelector(value: string | RegExp, exact: boolea
   return `"${value.replace(/\\/g, "\\\\").replace(/["]/g, '\\"')}"${exact ? "s" : "i"}`;
 }
 
-function parseLocator(
+export function parseLocator(
   locator: string,
   testIdAttributeName: string
 ): { selector: string; preferredQuote: any | undefined } {

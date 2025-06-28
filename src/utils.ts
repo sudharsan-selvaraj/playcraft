@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { JSDOM } from "jsdom";
-import { chromium } from "playwright";
+import { chromium } from "playwright-extra";
+const stealth = require("puppeteer-extra-plugin-stealth")();
 
 export function isPlaywrightInstalled() {
   try {
@@ -60,7 +61,11 @@ export function updateResourcePaths(html: string, baseUrl: string): string {
 }
 
 export async function launchBrowser() {
-  const browser = await chromium.launch({ headless: false });
+  chromium.use(stealth);
+  const browser = await chromium.launch({
+    headless: false,
+    args: ["--disable-site-isolation-trials", "--disable-web-security"],
+  });
   const context = await browser.newContext({
     viewport: null,
   });
@@ -71,7 +76,7 @@ export async function launchBrowser() {
 
 export function patchHeaders(headers: Record<string, string>, serverUrl: string) {
   let isHeaderUpdated = false;
-  const frameAncestorsRegex = /frame-ancestors\s+[^;]+;/gi;
+  const frameAncestorsRegex = /frame-ancestors\s+[^;]+;?/gi;
   if (
     headers["content-security-policy"] &&
     frameAncestorsRegex.test(headers["content-security-policy"])

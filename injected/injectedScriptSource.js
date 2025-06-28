@@ -1,4 +1,7 @@
 (() => {
+  if (window.self === window.top) {
+    return;
+  }
   const module = {};
 
   var __commonJS = (obj) => {
@@ -8005,7 +8008,7 @@ ${i + 1}) ${info.preview} aka ${asLocator(this._sdkLanguage, info.selector)}`
     "undefined",
     "data-testid",
     1,
-    "webkit",
+    "chromium",
     false,
     []
   );
