@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
 import { Play, SunMoon } from 'lucide-react';
 import { ActionIcon, Tabs, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
+import { executeCode } from '@/apiService';
 import PlayCraftLogoDark from '../assets/logo_dark.png';
 import PlayCraftLogoLight from '../assets/logo_light.png';
 import { CodeEditor } from '../components/CodeEditor';
 import TerminalLog from '../components/TerminalLog';
 import { customColors } from '../theme';
 
+
 const DEFAULT_CODE = `
-await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
-console.log('Page loaded', await page.title());
+(async ()=> {
+  await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
+  console.log('Page loaded', await page.title());
+  await page.locator(".DocSearch-Button-Placeholder").click();
+  await page.locator("#docsearch-input").fill("locators");
+  await page.locator(".DocSearch-Hit-title").filter({ hasText: "Filtering Locators" }).click()
+})()
 `;
 
 const logo = (colorScheme: 'dark' | 'light') => {
@@ -23,6 +30,7 @@ export function CodePanelPage() {
   const colorScheme = useComputedColorScheme('dark');
   const { colorScheme: mantineColorScheme, setColorScheme } = useMantineColorScheme();
   const [code, setCode] = useState(DEFAULT_CODE.trim());
+  const [isExecuting, setIsExecuting] = useState(false);
 
   return (
     <div
@@ -77,8 +85,16 @@ export function CodePanelPage() {
           code={code}
           onCodeChange={(value) => setCode(value ?? '')}
           colorScheme={colorScheme}
-          onPlayClick={() => {
-            /* TODO: handle play click */
+          isExecuting={isExecuting}
+          onPlayClick={async () => {
+            try {
+              setIsExecuting(true);
+              await executeCode(code);
+            } catch (error) {
+              console.error(error);
+            } finally {
+              setIsExecuting(false);
+            }
           }}
         />
         {/* Tabs for Terminal, Mock, Network, Console */}

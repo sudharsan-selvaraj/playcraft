@@ -1,6 +1,7 @@
 import { Page, Route, Request, Frame } from "playwright";
 import { JSDOM } from "jsdom";
 import { isSameDomain, patchHeaders } from "../../utils";
+import { CodeExecutor } from "./executor";
 
 const IFRAME_NAME = "aut-frame";
 const DEFAULT_APP_URL = "https://www.playwright.dev/";
@@ -9,9 +10,20 @@ export class Session {
   private _id: string;
   private code: string = "";
   private appUrl: string = "";
+  private codeExecutor: CodeExecutor;
 
   constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
     this._id = crypto.randomUUID();
+    this.codeExecutor = new CodeExecutor({
+      session: this,
+    });
+  }
+
+  public async init() {
+    this.page.addInitScript(``);
+    this.page.route("**/*", this.onRequestMade.bind(this));
+
+    await this.loadApplication();
   }
 
   setCode(code: string) {
@@ -26,15 +38,20 @@ export class Session {
     return this._id;
   }
 
-  private get frame() {
-    return this.page.frame(IFRAME_NAME);
+  public getFrame() {
+    return this.frame;
   }
 
-  public async init() {
-    this.page.addInitScript(``);
-    this.page.route("**/*", this.onRequestMade.bind(this));
+  public getPage() {
+    return this.page;
+  }
 
-    await this.loadApplication();
+  public async executeCode(code: string) {
+    return await this.codeExecutor.execute(code);
+  }
+
+  private get frame() {
+    return this.page.frame(IFRAME_NAME);
   }
 
   private async navigateTo(url: string) {
@@ -129,5 +146,15 @@ export class Session {
       console.log(err);
       await route.abort();
     }
+  }
+
+  toJSON() {
+    return {
+      id: this._id,
+      appUrl: this.appUrl,
+      code: this.code,
+      logs: [],
+      isExecuting: false,
+    };
   }
 }

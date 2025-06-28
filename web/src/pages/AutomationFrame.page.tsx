@@ -5,6 +5,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { navigateToUrl } from '../apiService';
 import { customColors } from '../theme';
 
+
 const DEVICES = [
   { name: 'Responsive', width: '100%', height: '100%' },
   { name: 'iPhone SE', width: 375, height: 667 },
@@ -409,11 +410,13 @@ export function AutomationFrame() {
             borderRadius: 0,
             transition: 'background 0.2s',
             display: 'block',
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
+            // WebkitTransform: `scale(${scale})`,
+            // transformOrigin: 'top center',
             position: 'absolute',
             top: 0,
             marginTop: 0,
+            maxHeight: '100%',
+            maxWidth: '100%',
           }}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           onLoad={() => setLoading(false)}

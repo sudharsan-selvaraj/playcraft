@@ -18,3 +18,15 @@ export const navigate: RequestHandler = async (req, res) => {
   await session.loadApplication(url);
   res.json({ sessionId: session.id });
 };
+
+export const executeCode: RequestHandler = async (req, res) => {
+  const { sessionId } = req.params;
+  const { code } = req.body;
+  const session = SessionManager.get(sessionId);
+  if (!session) {
+    res.status(500).json({ error: "Session not initialized" });
+    return;
+  }
+  const result = await session.executeCode(code);
+  res.json({ result });
+};

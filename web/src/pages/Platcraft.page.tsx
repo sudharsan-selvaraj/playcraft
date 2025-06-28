@@ -4,6 +4,7 @@ import { customColors } from '../theme';
 import { AutomationFrame } from './AutomationFrame.page';
 import { CodePanelPage } from './CodePanel.page';
 
+
 export function PlayCraftPage() {
   const colorScheme = useComputedColorScheme('light');
   return (
@@ -29,7 +30,7 @@ export function PlayCraftPage() {
           </div>
         }
         right={<AutomationFrame />}
-        minLeftWidth={500}
+        minLeftWidth={200}
         initialLeftWidth={500}
       />
     </div>

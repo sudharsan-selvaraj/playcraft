@@ -49,3 +49,18 @@ export async function navigateToUrl(url: string) {
     return { error: error.message || 'Failed to navigate to URL' };
   }
 }
+
+export async function executeCode(code: string) {
+  try {
+    const response = await fetch(`${BaseUrl()}/session/${getSessionId()}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    return await handleResponse(response);
+  } catch (error: any) {
+    return { error: error.message || 'Failed to execute code' };
+  }
+}
+
+

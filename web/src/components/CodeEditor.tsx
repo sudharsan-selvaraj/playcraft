@@ -1,13 +1,15 @@
 import React from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import { Play } from 'lucide-react';
+import { Play, StopCircleIcon } from 'lucide-react';
 import { ActionIcon } from '@mantine/core';
+
 
 interface CodeEditorProps {
   code: string;
   onCodeChange?: (value: string | undefined) => void;
   colorScheme: 'dark' | 'light';
   onPlayClick?: () => void;
+  isExecuting?: boolean;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -15,6 +17,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onCodeChange,
   colorScheme,
   onPlayClick,
+  isExecuting,
 }) => {
   return (
     <div
@@ -37,10 +40,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         <ActionIcon
           variant="transparent"
           size={20}
-          style={{ color: '#44BA4A' }}
+          style={{ color: isExecuting ? '#c63e14' : '#44BA4A' }}
           onClick={onPlayClick}
         >
-          <Play fill="currentColor" />
+          {isExecuting ? <StopCircleIcon fill="currentColor" /> : <Play fill="currentColor" />}
         </ActionIcon>
       </div>
       <div
