@@ -1,6 +1,7 @@
 import React from 'react';
 import AnsiToHtml from 'ansi-to-html';
 
+
 export type LogEntry = {
   message: string;
   level: string;
@@ -18,11 +19,11 @@ function formatLogLine(log: LogEntry) {
   // Convert ANSI to HTML
   const html = ansiConverter.toHtml(log.message);
   return (
-    <span style={{ color }}>
+    <span style={{ color, padding: '10px 0' }}>
       <span dangerouslySetInnerHTML={{ __html: html }} />
-      <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>
+      {/* <span style={{ color: '#555', marginLeft: 8, fontSize: 10 }}>
         {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ''}
-      </span>
+      </span> */}
     </span>
   );
 }
