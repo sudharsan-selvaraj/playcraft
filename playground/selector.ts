@@ -239,7 +239,7 @@ function transform(template: string, params: TemplateParams, testIdAttributeName
 console.log(
   parseLocator(
     `
-   locator("xpath=.//*[@id='repo-content-pjax-container']").getByText("c")
+   locator('frame[name="login_page"]').contentFrame().getByRole('textbox')
     `,
     "data-testid"
   )

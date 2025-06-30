@@ -5,6 +5,7 @@ import {
   Globe,
   RefreshCw,
   RulerDimensionLine,
+  Settings as SettingsIcon,
   SquareDashedMousePointer,
 } from 'lucide-react';
 import {
@@ -20,7 +21,11 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { navigateToUrl, testLocator } from '../apiService';
+import { useSettings } from '../components/SettingsContext';
+import { SettingsModal } from '../components/SettingsModal';
 import { customColors } from '../theme';
+
+
 
 const DEVICES = [
   { name: 'Responsive', width: '100%', height: '100%' },
@@ -67,6 +72,12 @@ export function AutomationFrame() {
   const [locatorInput, setLocatorInput] = useState('');
   const [showLocatorInput, setShowLocatorInput] = useState(false);
   const [locatorCount, setLocatorCount] = useState<number | null>(null);
+  const [settingsOpen, { open: openSettings, close: closeSettings }] = useDisclosure(false);
+  const { settings } = useSettings();
+
+  const sandboxValue = settings.allowIframeSandboxing
+    ? 'allow-scripts allow-forms allow-popups allow-same-origin allow-modals allow-presentation'
+    : undefined;
 
   useEffect(() => {
     function handleIframeMessage(event: MessageEvent) {
@@ -282,9 +293,32 @@ export function AutomationFrame() {
               borderRadius: 8,
               transition: 'background 0.15s',
               color: customColors.icon[colorScheme],
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
+            disabled={loading}
+            aria-label={loading ? 'Loading' : 'Refresh'}
           >
-            <RefreshCw size={18} />
+            {loading ? (
+              <RefreshCw
+                size={18}
+                style={{
+                  animation: 'spin 0.8s linear infinite',
+                  color: customColors.primary[colorScheme],
+                  opacity: 0.85,
+                }}
+              />
+            ) : (
+              <RefreshCw size={18} />
+            )}
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
           </ActionIcon>
         </Group>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -386,7 +420,25 @@ export function AutomationFrame() {
                 e.currentTarget.style.borderColor = customColors.border[colorScheme];
               }
             }}
-            onClick={() => {
+            onClick={async () => {
+              if (showLocatorInput) {
+                // About to hide, so call testLocator("")
+                try {
+                  if (iframeRef.current && iframeRef.current.contentWindow) {
+                    iframeRef.current.contentWindow.postMessage(
+                      { action: 'clear-highlights' },
+                      '*'
+                    );
+                  }
+                  const result = await testLocator('');
+                  setLocatorCount(typeof result.result === 'number' ? result.result : null);
+                  setLocatorInput('');
+                } catch (err) {
+                  setLocatorCount(null);
+                  setLocatorInput('');
+                  console.error('Locator test error:', err);
+                }
+              }
               setShowLocatorInput((v) => {
                 const next = !v;
                 if (iframeRef.current && iframeRef.current.contentWindow) {
@@ -400,6 +452,34 @@ export function AutomationFrame() {
             }}
           >
             <SquareDashedMousePointer size={20} />
+          </ActionIcon>
+          <ActionIcon
+            variant="light"
+            radius={8}
+            size={36}
+            style={{
+              marginLeft: 4,
+              border: `1px solid ${customColors.border[colorScheme]}`,
+              background: customColors.secondaryBg[colorScheme],
+              color: customColors.icon[colorScheme],
+              boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
+              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
+              cursor: 'pointer',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = customColors.iconBg[colorScheme];
+              e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
+              e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
+              e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
+              e.currentTarget.style.borderColor = customColors.border[colorScheme];
+            }}
+            onClick={openSettings}
+            aria-label="Settings"
+          >
+            <SettingsIcon size={20} />
           </ActionIcon>
         </div>
       </div>
@@ -495,6 +575,12 @@ export function AutomationFrame() {
                 }}
                 onClick={async () => {
                   try {
+                    if (iframeRef.current && iframeRef.current.contentWindow) {
+                      iframeRef.current.contentWindow.postMessage(
+                        { action: 'clear-highlights' },
+                        '*'
+                      );
+                    }
                     const result = await testLocator(locatorInput);
                     setLocatorCount(typeof result.result === 'number' ? result.result : null);
                     console.log('Locator test result:', result);
@@ -541,67 +627,60 @@ export function AutomationFrame() {
           position: 'relative',
         }}
       >
-        {/* Loader overlay */}
-        {loading && (
-          <div
+        {settings.allowIframeSandboxing ? (
+          <iframe
+            ref={iframeRef}
+            src={url}
+            id="aut-frame"
+            name="aut-frame"
             style={{
+              boxShadow:
+                '0 4px 32px 0 rgba(60, 60, 60, 0.10), 0 1.5px 8px 0 rgba(224, 201, 127, 0.10) inset',
+              border: `1px solid ${customColors.border[colorScheme]}`,
+              width: iframeWidth,
+              height: iframeHeight,
+              background: customColors.background[colorScheme],
+              borderRadius: 0,
+              transition: 'background 0.2s',
+              display: 'block',
+              // WebkitTransform: `scale(${scale})`,
+              // transformOrigin: 'top center',
               position: 'absolute',
               top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              background: 'rgba(255,255,255,0.7)',
-              zIndex: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              marginTop: 0,
+              maxHeight: '100%',
+              maxWidth: '100%',
             }}
-          >
-            <div
-              className="loader"
-              style={{
-                border: '4px solid #f3f3f3',
-                borderTop: '4px solid #555',
-                borderRadius: '50%',
-                width: 40,
-                height: 40,
-                animation: 'spin 1s linear infinite',
-              }}
-            />
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
-          </div>
+            {...(sandboxValue ? { sandbox: sandboxValue } : {})}
+            onLoad={() => setLoading(false)}
+          />
+        ) : (
+          <iframe
+            ref={iframeRef}
+            src={url}
+            id="aut-frame"
+            name="aut-frame"
+            style={{
+              boxShadow:
+                '0 4px 32px 0 rgba(60, 60, 60, 0.10), 0 1.5px 8px 0 rgba(224, 201, 127, 0.10) inset',
+              border: `1px solid ${customColors.border[colorScheme]}`,
+              width: iframeWidth,
+              height: iframeHeight,
+              background: customColors.background[colorScheme],
+              borderRadius: 0,
+              transition: 'background 0.2s',
+              display: 'block',
+              // WebkitTransform: `scale(${scale})`,
+              // transformOrigin: 'top center',
+              position: 'absolute',
+              top: 0,
+              marginTop: 0,
+              maxHeight: '100%',
+              maxWidth: '100%',
+            }}
+            onLoad={() => setLoading(false)}
+          />
         )}
-        <iframe
-          ref={iframeRef}
-          src={url}
-          id="aut-frame"
-          name="aut-frame"
-          style={{
-            boxShadow:
-              '0 4px 32px 0 rgba(60, 60, 60, 0.10), 0 1.5px 8px 0 rgba(224, 201, 127, 0.10) inset',
-            border: `1px solid ${customColors.border[colorScheme]}`,
-            width: iframeWidth,
-            height: iframeHeight,
-            background: customColors.background[colorScheme],
-            borderRadius: 0,
-            transition: 'background 0.2s',
-            display: 'block',
-            // WebkitTransform: `scale(${scale})`,
-            // transformOrigin: 'top center',
-            position: 'absolute',
-            top: 0,
-            marginTop: 0,
-            maxHeight: '100%',
-            maxWidth: '100%',
-          }}
-          sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-          onLoad={() => setLoading(false)}
-        />
       </div>
       <Modal opened={customOpen} onClose={closeCustom} title="Custom Resolution" centered>
         <NumberInput
@@ -637,6 +716,7 @@ export function AutomationFrame() {
           Apply
         </Button>
       </Modal>
+      <SettingsModal opened={settingsOpen} onClose={closeSettings} />
     </div>
   );
 }

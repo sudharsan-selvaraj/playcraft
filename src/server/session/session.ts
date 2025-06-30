@@ -1,6 +1,6 @@
 import { Page, Route, Request, Frame } from "playwright";
 import { JSDOM } from "jsdom";
-import { isSameDomain, patchHeaders } from "../../utils";
+import { getRedirectUrl, isSameDomain, patchHeaders } from "../../utils";
 import { CodeExecutor } from "./executor";
 import fs from "fs";
 import { dirname, join, resolve } from "path";
@@ -14,7 +14,10 @@ export class Session {
   private _id: string;
   private code: string = "";
   private appUrl: string = "";
+  private parentUrl: string = "";
   private codeExecutor: CodeExecutor;
+  private eventHandlers: Record<string, any> = {};
+  private routeHandlers: Record<string | symbol, any> = {};
 
   constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
     this._id = crypto.randomUUID();
@@ -29,6 +32,7 @@ export class Session {
       fs.readFileSync(join(rootDir, "injected/injectedScriptSource.js"), "utf-8")
     );
     await this.page.addInitScript(fs.readFileSync(join(rootDir, "injected/iframe.js"), "utf-8"));
+
     this.page.route("**/*", this.onRequestMade.bind(this));
 
     await this.loadApplication();
@@ -55,29 +59,52 @@ export class Session {
   }
 
   public async executeCode(code: string) {
-    return await this.codeExecutor.execute(code);
+    const result = await this.codeExecutor.execute(code);
+    this.removeEventHandlers();
+    return result;
   }
 
   public async testLocator(locator: string) {
-    const parsedSelector = parseLocator(locator, "data-testid");
-    return await this.frame?.evaluate((selector) => {
-      // @ts-ignore
-      const _script = window?.InjectedScript;
-      const parsedSelector = _script?.parseSelector(selector);
-      _script?.highlight(parsedSelector);
-      const elements = _script?.querySelectorAll(parsedSelector, _script.document.documentElement);
-      return elements.length;
-    }, parsedSelector.selector);
+    if (!locator) {
+      return await this.executeCode(`
+        await Promise.all(page.frames().map((frame) => {
+          return frame.locator("invalid-xpath").highlight();
+        }));
+   `);
+    }
+    parseLocator(locator, "data-testid");
+    return await this.executeCode(`
+         await page.${locator}.highlight();
+         result = await page.${locator}.count();
+    `);
   }
 
   private get frame() {
     return this.page.frame(IFRAME_NAME);
   }
 
-  private async navigateTo(url: string) {
-    await this.page.goto(new URL(url).origin);
+  private async navigateTo(url: string, options?: any) {
+    const redirectUrl = await getRedirectUrl(url);
+    if (!isSameDomain(redirectUrl, this.parentUrl)) {
+      this.parentUrl = new URL(redirectUrl).origin;
+      await this.page.goto(this.parentUrl, { waitUntil: "networkidle" });
+    }
     await this.page.waitForSelector(IFRAME_SELECTOR);
-    await this.frame?.goto(url, { waitUntil: "networkidle" });
+    try {
+      await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "TimeoutError") {
+        await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
+      }
+    }
+    // await this.page.evaluate(
+    //   ({ url, IFRAME_SELECTOR }) => {
+    //     const iframe = document.querySelector(IFRAME_SELECTOR) as HTMLIFrameElement;
+    //     iframe.src = url;
+    //   },
+    //   { url, IFRAME_SELECTOR }
+    // );
+    // await this.frame?.waitForLoadState("networkidle");
     // try {
     //   await this.page.waitForFunction(
     //     ({ iframeSelector }) => {
@@ -127,12 +154,13 @@ export class Session {
      * else, this is the first time we are loading the application
      */
     if (appUrl && this.frame) {
-      await this.navigateTo(appUrl);
+      await this.navigateTo(appUrl, options);
     } else {
       try {
-        await this.page.goto(this.serverUrl, { waitUntil: "load" });
+        this.parentUrl = this.serverUrl;
+        await this.page.goto(this.parentUrl, { waitUntil: "load" });
         await this.page.waitForSelector(IFRAME_SELECTOR);
-        await this.frame?.goto("https://www.playwright.dev/", { waitUntil: "networkidle" });
+        await this.frame?.goto("https://www.playwright.dev/", options);
       } catch (err) {
         console.log(err);
       }
@@ -145,7 +173,7 @@ export class Session {
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.innerHTML = `
-      // window.APP_URL = "${appUrl}";
+      window.APP_URL = "${appUrl}";
       window.SESSION_ID = "${this._id}";
       window.SERVER_URL = "${this.serverUrl}";
     `;
@@ -156,6 +184,7 @@ export class Session {
   private async onRequestMade(route: Route, request: Request) {
     try {
       const isMainFrame = request.frame() === this.page.mainFrame();
+      const isChildFrame = request.frame() === this.frame;
       if (isMainFrame && request.resourceType() === "document") {
         await route.fulfill({
           body: this.patchDOM(this.injectedDOM, this.appUrl),
@@ -188,11 +217,11 @@ export class Session {
         } catch (err) {
           return await route.continue();
         }
-      } else if (!isMainFrame && request.resourceType() === "document") {
+      } else if (isChildFrame && request.resourceType() === "document") {
         let response;
         try {
           response = await route.fetch({
-            timeout: 5000,
+            timeout: 60000,
             headers: {
               ...request.headers(),
               "sec-fetch-site": "none",
@@ -208,7 +237,7 @@ export class Session {
         }
         const headers = { ...response.headers() };
         const returnValue = { response } as any;
-        if (patchHeaders(headers, this.serverUrl)) {
+        if (patchHeaders(headers)) {
           returnValue["headers"] = headers;
         }
         // /* For few websites like facebook, even after modifying the headers, the frame is still blocked.
@@ -229,6 +258,26 @@ export class Session {
     } catch (err) {
       console.log(err);
       await route.continue();
+    }
+  }
+
+  async onEventHandlerAdded(event: string, callback: any) {
+    this.eventHandlers[event] = callback;
+  }
+
+  async onRouteHandlerAdded(route: string | symbol, callback: any) {
+    this.routeHandlers[route] = callback;
+  }
+
+  async removeEventHandlers() {
+    for (const event in this.eventHandlers) {
+      this.page.off(event as any, this.eventHandlers[event]);
+      delete this.eventHandlers[event];
+    }
+
+    for (const route in this.routeHandlers) {
+      this.page.unroute(route as any, this.routeHandlers[route]);
+      delete this.routeHandlers[route];
     }
   }
 

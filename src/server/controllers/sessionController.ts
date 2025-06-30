@@ -35,7 +35,7 @@ export const testLocator: RequestHandler = async (req, res) => {
   const { sessionId } = req.params;
   const { locator } = req.body;
   const session = SessionManager.get(sessionId);
-  if (!session || !locator) {
+  if (!session) {
     res.status(500).json({ error: "Session not initialized" });
     return;
   }

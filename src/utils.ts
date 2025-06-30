@@ -2,6 +2,8 @@ import path from "path";
 import fs from "fs";
 import { JSDOM } from "jsdom";
 import { chromium } from "playwright-extra";
+import { http, https } from "follow-redirects";
+
 const stealth = require("puppeteer-extra-plugin-stealth")();
 
 export function isPlaywrightInstalled() {
@@ -74,7 +76,7 @@ export async function launchBrowser() {
   return page;
 }
 
-export function patchHeaders(headers: Record<string, string>, serverUrl: string) {
+export function patchHeaders(headers: Record<string, string>) {
   let isHeaderUpdated = false;
   const frameAncestorsRegex = /frame-ancestors\s+[^;]+;?/gi;
   if (
@@ -93,4 +95,27 @@ export function patchHeaders(headers: Record<string, string>, serverUrl: string)
     isHeaderUpdated = true;
   }
   return isHeaderUpdated;
+}
+
+export async function getRedirectUrl(url: string): Promise<string> {
+  try {
+    const parsedUrl = new URL(url);
+    const protocol = parsedUrl.protocol === "https:" ? https : http;
+    const headers = {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    };
+    const redirectUrl = (await new Promise((resolve, reject) => {
+      const request = protocol.request(url, { headers }, (response: any) => {
+        resolve(response.responseUrl);
+      });
+      request.on("error", (error: any) => {
+        reject(error);
+      });
+      request.end();
+    })) as string;
+    return redirectUrl;
+  } catch (err) {
+    return url;
+  }
 }
