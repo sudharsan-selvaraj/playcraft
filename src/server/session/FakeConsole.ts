@@ -13,11 +13,7 @@ export class FakeConsole {
 
   private emitLog(type: "log" | "error" | "warn" | "info" | "debug", ...args: any[]) {
     const msg = util.format(...args);
-    if (type === "error" || type === "warn") {
-      this.listeners?.onError?.(new Error(msg));
-    } else {
-      this.listeners?.onLog?.(msg);
-    }
+    this.listeners?.onLog?.({ message: msg, level: type });
   }
 
   assert(value: any, ...args: any[]) {

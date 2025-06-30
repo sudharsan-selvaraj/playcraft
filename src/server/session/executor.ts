@@ -7,8 +7,8 @@ import { expect } from "@playwright/test";
 export type CodeExecutorOptions = {
   session: Session;
   listeners?: {
-    onLog: (log: string) => void;
-    onError: (error: Error) => void;
+    onLog: (log: { message: string; level: string }) => void;
+    onError: (error: { message: string; level: string }) => void;
     onExecutionStarted: () => void;
     onExecutionEnded: () => void;
     onStepStarted: (step: number) => void;
@@ -21,7 +21,7 @@ export class CodeExecutor {
   constructor(private options: CodeExecutorOptions) {
     this.vmContext = createContext({
       ...global,
-      console: console, //new FakeConsole(options.listeners),
+      console: new FakeConsole(options.listeners),
       expect: expect,
       wait: async (ms: number) => {
         await new Promise((r) => setTimeout(r, ms));

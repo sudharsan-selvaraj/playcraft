@@ -3,7 +3,6 @@ import MonacoEditor from '@monaco-editor/react';
 import { Play, StopCircleIcon } from 'lucide-react';
 import { ActionIcon } from '@mantine/core';
 
-
 interface CodeEditorProps {
   code: string;
   onCodeChange?: (value: string | undefined) => void;

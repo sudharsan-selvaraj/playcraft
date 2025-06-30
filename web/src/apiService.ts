@@ -76,4 +76,14 @@ export async function testLocator(locator: string) {
   }
 }
 
+export async function getSessionState(sessionId?: string) {
+  try {
+    const id = sessionId || getSessionId();
+    const response = await fetch(`${BaseUrl()}/session/${id}`);
+    return await handleResponse(response);
+  } catch (error: any) {
+    return { error: error.message || 'Failed to fetch session state' };
+  }
+}
+
 

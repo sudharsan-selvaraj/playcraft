@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
-import { Play, SunMoon } from 'lucide-react';
-import { ActionIcon, Tabs, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
-import { executeCode } from '@/apiService';
+import React, { useCallback, useEffect, useState } from 'react';
+import { SunMoon } from 'lucide-react';
+import {
+  ActionIcon,
+  Alert,
+  Tabs,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from '@mantine/core';
+import { executeCode, getSessionState } from '../apiService';
 import PlayCraftLogoDark from '../assets/logo_dark.png';
 import PlayCraftLogoLight from '../assets/logo_light.png';
 import { CodeEditor } from '../components/CodeEditor';
+import { useSocket } from '../components/SocketProvider';
 import TerminalLog from '../components/TerminalLog';
 import { customColors } from '../theme';
-
 
 const DEFAULT_CODE = `
 (async ()=> {
@@ -30,7 +36,56 @@ export function CodePanelPage() {
   const colorScheme = useComputedColorScheme('dark');
   const { colorScheme: mantineColorScheme, setColorScheme } = useMantineColorScheme();
   const [code, setCode] = useState(DEFAULT_CODE.trim());
+  const [logs, setLogs] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'execution' | 'completed' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const socket = useSocket();
+
+  // Fetch session state and restore UI on mount
+  useEffect(() => {
+    (async () => {
+      const session = await getSessionState();
+      if (session && !session.error) {
+        setCode(session.code || DEFAULT_CODE.trim());
+        setLogs(session.logs || []);
+        setStatus(session.status || 'idle');
+        setError(session.error || null);
+      }
+    })();
+  }, []);
+
+  // Socket: join room and listen for logs
+  useEffect(() => {
+    if (!socket) return;
+    const sessionId = (window as any).SESSION_ID;
+    if (!sessionId) return;
+    socket.emit('ready', { sessionId });
+    const onLog = (log: { message: string; level: string; timestamp?: number }) => {
+      setLogs((prev) => [...prev, log]);
+    };
+    socket.on('log', onLog);
+    return () => {
+      socket.off('log', onLog);
+    };
+  }, [socket]);
+
+  // Handle code execution
+  const handleExecute = useCallback(async () => {
+    setIsExecuting(true);
+    setLogs([]);
+    setStatus('execution');
+    setError(null);
+    try {
+      await executeCode(code);
+      // Status will be updated via session state or log events
+    } catch (err: any) {
+      setError(err.message || 'Execution failed');
+      setStatus('error');
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [code]);
 
   return (
     <div
@@ -85,23 +140,14 @@ export function CodePanelPage() {
           code={code}
           onCodeChange={(value) => setCode(value ?? '')}
           colorScheme={colorScheme}
-          isExecuting={isExecuting}
-          onPlayClick={async () => {
-            try {
-              setIsExecuting(true);
-              await executeCode(code);
-            } catch (error) {
-              console.error(error);
-            } finally {
-              setIsExecuting(false);
-            }
-          }}
+          isExecuting={isExecuting || status === 'execution'}
+          onPlayClick={handleExecute}
         />
         {/* Tabs for Terminal, Mock, Network, Console */}
         <div
           style={{
             background: customColors.secondaryBg[colorScheme],
-            height: '100%',
+            height: 'calc(50% - 30px)',
           }}
         >
           <Tabs
@@ -143,26 +189,7 @@ export function CodePanelPage() {
                     borderRadius: 0,
                   }}
                 >
-                  <TerminalLog
-                    logs={[
-                      <span>
-                        <span style={{ color: customColors.text['dark'] }}>
-                          Welcome to <b>PlayCraft Terminal</b>!<br />
-                          Execution logs will appear here.
-                          <br />
-                        </span>
-                      </span>,
-                      // Example log lines:
-                      <span style={{ color: customColors.text['dark'] }}>
-                        Execution started...
-                      </span>,
-                      <span style={{ color: customColors.text['dark'] }}>
-                        Execution finished successfully! Execution finished successfully! Execution
-                        finished successfully! Execution finished successfully! Execution finished
-                        successfully!
-                      </span>,
-                    ]}
-                  />
+                  <TerminalLog logs={logs} />
                 </div>
               </div>
             </Tabs.Panel>
@@ -184,6 +211,15 @@ export function CodePanelPage() {
           </Tabs>
         </div>
       </div>
+      {status === 'error' && error && (
+        <Alert
+          color="red"
+          title="Execution Error"
+          style={{ position: 'absolute', bottom: 24, right: 24 }}
+        >
+          {error}
+        </Alert>
+      )}
     </div>
   );
 }

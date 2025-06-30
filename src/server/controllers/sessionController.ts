@@ -6,6 +6,16 @@ export const listSessions: RequestHandler = async (req, res) => {
   res.json({ sessions });
 };
 
+export const getSession: RequestHandler = async (req, res) => {
+  const { sessionId } = req.params;
+  const session = SessionManager.get(sessionId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json(session.toJSON());
+};
+
 export const navigate: RequestHandler = async (req, res) => {
   // Return the current session id if exists
   const { url } = req.body;

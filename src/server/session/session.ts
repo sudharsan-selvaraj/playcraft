@@ -5,6 +5,7 @@ import { CodeExecutor } from "./executor";
 import fs from "fs";
 import { dirname, join, resolve } from "path";
 import { parseLocator } from "../../selector-utils";
+import { eventBus } from "../../events/eventBus";
 
 const IFRAME_NAME = "aut-frame";
 const IFRAME_SELECTOR = `iframe[name='${IFRAME_NAME}']`;
@@ -18,11 +19,39 @@ export class Session {
   private codeExecutor: CodeExecutor;
   private eventHandlers: Record<string, any> = {};
   private routeHandlers: Record<string | symbol, any> = {};
+  private logs: Array<{ message: string; level: string; timestamp: number }> = [];
+  private status: "idle" | "execution" | "completed" | "error" = "idle";
+  private lastError: string | null = null;
 
   constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
     this._id = crypto.randomUUID();
     this.codeExecutor = new CodeExecutor({
       session: this,
+      listeners: {
+        onLog: (log: { message: string; level: string }) => {
+          const logEntry = { message: log.message, level: log.level, timestamp: Date.now() };
+          this.logs.push(logEntry);
+          eventBus.emit("log", {
+            sessionId: this._id,
+            message: log.message,
+            level: log.level,
+            timestamp: logEntry.timestamp,
+          });
+        },
+        onError: (error: { message: string; level: string }) => {
+          const logEntry = { message: error.message, level: error.level, timestamp: Date.now() };
+          this.logs.push(logEntry);
+          eventBus.emit("log", {
+            sessionId: this._id,
+            message: error.message,
+            level: error.level,
+            timestamp: logEntry.timestamp,
+          });
+        },
+        onExecutionStarted: () => {},
+        onExecutionEnded: () => {},
+        onStepStarted: (_step: number) => {},
+      },
     });
   }
 
@@ -38,12 +67,20 @@ export class Session {
     await this.loadApplication();
   }
 
-  setCode(code: string) {
+  private setCode(code: string) {
     this.code = code;
   }
 
   getCode() {
     return this.code;
+  }
+
+  getStatus() {
+    return this.status;
+  }
+
+  getLastError() {
+    return this.lastError;
   }
 
   get id() {
@@ -59,9 +96,21 @@ export class Session {
   }
 
   public async executeCode(code: string) {
-    const result = await this.codeExecutor.execute(code);
-    this.removeEventHandlers();
-    return result;
+    this.setCode(code);
+    this.logs = [];
+    this.status = "execution";
+    this.lastError = null;
+    try {
+      const result = await this.codeExecutor.execute(code);
+      this.status = "completed";
+      return result;
+    } catch (err: any) {
+      this.status = "error";
+      this.lastError = err?.message || "Unknown error";
+      throw err;
+    } finally {
+      this.removeEventHandlers();
+    }
   }
 
   public async testLocator(locator: string) {
@@ -85,7 +134,7 @@ export class Session {
 
   private async navigateTo(url: string, options?: any) {
     const redirectUrl = await getRedirectUrl(url);
-    if (!isSameDomain(redirectUrl, this.parentUrl)) {
+    if (!isSameDomain(redirectUrl, this.page.url())) {
       this.parentUrl = new URL(redirectUrl).origin;
       await this.page.goto(this.parentUrl, { waitUntil: "networkidle" });
     }
@@ -286,8 +335,14 @@ export class Session {
       id: this._id,
       appUrl: this.appUrl,
       code: this.code,
-      logs: [],
-      isExecuting: false,
+      logs: this.logs,
+      status: this.status,
+      error: this.lastError,
+      isExecuting: this.status === "execution",
     };
+  }
+
+  public getLogs() {
+    return this.logs;
   }
 }

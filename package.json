@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@playwright/test": "^1.53.1",
+    "@types/socket.io": "^3.0.1",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
@@ -39,6 +40,8 @@
     "path-exists-cli": "^2.0.0",
     "playwright": "^1.53.0",
     "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "socket.io": "^4.8.1",
+    "typed-emitter": "^2.1.0"
   }
 }
