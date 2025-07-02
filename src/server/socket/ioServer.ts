@@ -30,4 +30,22 @@ export function initSocketServer(server: http.Server) {
       io.to(sessionId).emit("log", { message, level, timestamp });
     }
   });
+
+  eventBus.on("execution-start", ({ sessionId, timestamp, status }) => {
+    if (io) {
+      io.to(sessionId).emit("execution-start", { timestamp, status });
+    }
+  });
+
+  eventBus.on("execution-complete", ({ sessionId, timestamp, success, status }) => {
+    if (io) {
+      io.to(sessionId).emit("execution-complete", { timestamp, success, status });
+    }
+  });
+
+  eventBus.on("step-start", ({ sessionId, step }) => {
+    if (io) {
+      io.to(sessionId).emit("step-start", { step });
+    }
+  });
 }

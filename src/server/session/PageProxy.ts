@@ -4,15 +4,22 @@ export class PageProxy {
   constructor(private session: Session) {
     return new Proxy(this, {
       get: (target, prop, receiver) => {
+        const frame = session.getFrame();
         if (prop in target) {
           return Reflect.get(target, prop, receiver);
+        } else if (frame && prop in frame!) {
+          const value = (frame as any)?.[prop];
+          if (typeof value === "function") {
+            return value.bind(frame);
+          }
+          return value;
+        } else if (prop in this.session.getPage()) {
+          const value = (this.session.getPage() as any)?.[prop];
+          if (typeof value === "function") {
+            return value.bind(this.session.getPage());
+          }
+          return value;
         }
-        const frame = session.getFrame();
-        const value = (frame as any)?.[prop];
-        if (typeof value === 'function') {
-          return value.bind(frame);
-        }
-        return value;
       },
     });
   }

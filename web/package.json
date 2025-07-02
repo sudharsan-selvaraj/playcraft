@@ -26,6 +26,7 @@
     "ansi-to-html": "^0.7.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-resizable-panels": "^3.0.3",
     "react-router-dom": "^7.6.2",
     "socket.io-client": "^4.8.1"
   },

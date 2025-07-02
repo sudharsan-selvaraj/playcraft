@@ -63,6 +63,16 @@ export async function executeCode(code: string) {
   }
 }
 
+export async function stopCodeExecution() {
+  try {
+    const response = await fetch(`${BaseUrl()}/session/${getSessionId()}/stop`, {
+      method: 'POST',
+    });
+  } catch (error: any) {
+    return { error: error.message || 'Failed to stop code execution' };
+  }
+}
+
 export async function testLocator(locator: string) {
   try {
     const response = await fetch(`${BaseUrl()}/session/${getSessionId()}/locator-test`, {

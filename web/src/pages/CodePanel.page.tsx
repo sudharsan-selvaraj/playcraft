@@ -1,27 +1,45 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SunMoon } from 'lucide-react';
-import {
-  ActionIcon,
-  Alert,
-  Tabs,
-  useComputedColorScheme,
-  useMantineColorScheme,
-} from '@mantine/core';
-import { executeCode, getSessionState } from '../apiService';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { ActionIcon, Alert, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
+import { executeCode, getSessionState, stopCodeExecution } from '../apiService';
 import PlayCraftLogoDark from '../assets/logo_dark.png';
 import PlayCraftLogoLight from '../assets/logo_light.png';
+import BottomPanel from '../components/BottomPanel';
 import { CodeEditor } from '../components/CodeEditor';
 import { useSocket } from '../components/SocketProvider';
 import TerminalLog from '../components/TerminalLog';
 import { customColors } from '../theme';
 
 const DEFAULT_CODE = `
+// (async ()=> {
+//   await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
+//   console.log('Page loaded', await page.title());
+//   await page.locator(".DocSearch-Button-Placeholder").click();
+//   await page.locator("#docsearch-input").fill("locators");
+//   await page.locator(".DocSearch-Hit-title").filter({ hasText: "Filtering Locators" }).click()
+// })()
+
+
+async function demo() {
+  await page.locator(".DocSearch-Button-Placeholder").click();
+  await page.locator("#docsearch-input").fill("locators");
+}
+
+async function waitFor() {
+  try {
+    await page.waitForSelector("sudharsan", {state: "visible", timeout: 2000})
+  } catch(err) {
+    console.error(err);
+  }
+}
+
 (async ()=> {
   await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
   console.log('Page loaded', await page.title());
-  await page.locator(".DocSearch-Button-Placeholder").click();
-  await page.locator("#docsearch-input").fill("locators");
+  await demo();
   await page.locator(".DocSearch-Hit-title").filter({ hasText: "Filtering Locators" }).click()
+  await waitFor()
 })()
 `;
 
@@ -40,7 +58,11 @@ export function CodePanelPage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'execution' | 'completed' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [currentStepNumber, setCurrentStepNumber] = useState<number | null>(null);
   const socket = useSocket();
+  const [bottomPanelMinimized, setBottomPanelMinimized] = useState(false);
+  const bottomPanelRef = useRef<any>(null);
+  const [lastPanelSize, setLastPanelSize] = useState<number | undefined>(30); // percent
 
   // Fetch session state and restore UI on mount
   useEffect(() => {
@@ -51,7 +73,9 @@ export function CodePanelPage() {
         setLogs(session.logs || []);
         setStatus(session.status || 'idle');
         setError(session.error || null);
+        setCurrentStepNumber(session.currentStepNumber || null);
       }
+      console.log("session", session)
     })();
   }, []);
 
@@ -61,31 +85,74 @@ export function CodePanelPage() {
     const sessionId = (window as any).SESSION_ID;
     if (!sessionId) return;
     socket.emit('ready', { sessionId });
+
     const onLog = (log: { message: string; level: string; timestamp?: number }) => {
       setLogs((prev) => [...prev, log]);
     };
+
+    const onExecutionStart = (data: { timestamp: number; status: string }) => {
+      setIsExecuting(true);
+      setLogs([]);
+      setStatus(data.status as 'idle' | 'execution' | 'completed' | 'error');
+      setError(null);
+    };
+
+    const onExecutionComplete = (data: { timestamp: number; success: boolean; status: string }) => {
+      setIsExecuting(false);
+      setStatus(data.status as 'idle' | 'execution' | 'completed' | 'error');
+      setCurrentStepNumber(null);
+    };
+
+    const onStepStart = (data: { step: number }) => {
+      setCurrentStepNumber(data.step);
+    };
+
     socket.on('log', onLog);
+    socket.on('execution-start', onExecutionStart);
+    socket.on('execution-complete', onExecutionComplete);
+    socket.on('step-start', onStepStart);
+
     return () => {
       socket.off('log', onLog);
+      socket.off('execution-start', onExecutionStart);
+      socket.off('execution-complete', onExecutionComplete);
+      socket.off('step-start', onStepStart);
     };
   }, [socket]);
 
   // Handle code execution
   const handleExecute = useCallback(async () => {
-    setIsExecuting(true);
-    setLogs([]);
-    setStatus('execution');
-    setError(null);
     try {
       await executeCode(code);
-      // Status will be updated via session state or log events
+      // Execution state is now managed by socket events
     } catch (err: any) {
-      setError(err.message || 'Execution failed');
-      setStatus('error');
-    } finally {
-      setIsExecuting(false);
+      // Error handling is also managed by socket events
+      console.error('Execution failed:', err);
     }
   }, [code]);
+
+  const handleStop = useCallback(async () => {
+    try {
+      await stopCodeExecution();
+    } catch (err: any) {
+      console.error('Stopping execution failed:', err);
+    }
+  }, []);
+
+  // Minimize/maximize logic for bottom panel
+  const handleMinimize = useCallback(() => {
+    if (bottomPanelRef.current) {
+      setLastPanelSize(bottomPanelRef.current.getSize());
+      bottomPanelRef.current.resize(5); // 5% or as small as possible
+      setBottomPanelMinimized(true);
+    }
+  }, []);
+  const handleMaximize = useCallback(() => {
+    if (bottomPanelRef.current) {
+      bottomPanelRef.current.resize(lastPanelSize || 30);
+      setBottomPanelMinimized(false);
+    }
+  }, [lastPanelSize]);
 
   return (
     <div
@@ -95,6 +162,8 @@ export function CodePanelPage() {
         display: 'flex',
         flexDirection: 'column',
         background: customColors.background[colorScheme],
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Header */}
@@ -128,89 +197,53 @@ export function CodePanelPage() {
         </ActionIcon>
       </div>
 
-      {/* Editor Container */}
-      <div
-        style={{
-          height: 'calc(100vh - 100px)',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <CodeEditor
-          code={code}
-          onCodeChange={(value) => setCode(value ?? '')}
-          colorScheme={colorScheme}
-          isExecuting={isExecuting || status === 'execution'}
-          onPlayClick={handleExecute}
-        />
-        {/* Tabs for Terminal, Mock, Network, Console */}
-        <div
-          style={{
-            background: customColors.secondaryBg[colorScheme],
-            height: 'calc(50% - 30px)',
-          }}
+      {/* Main Editor + Bottom Panel (Resizable) */}
+      <PanelGroup direction="vertical" style={{ flex: 1, minHeight: 0 }}>
+        <Panel
+          minSize={20}
+          defaultSize={70}
+          style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}
         >
-          <Tabs
-            defaultValue="terminal"
-            color="blue"
-            keepMounted={false}
-            style={{
-              height: '100%',
-            }}
+          <CodeEditor
+            code={code}
+            onCodeChange={(value) => setCode(value ?? '')}
+            colorScheme={colorScheme}
+            isExecuting={isExecuting || status === 'execution'}
+            onPlayClick={handleExecute}
+            onStopClick={handleStop}
+            currentStepNumber={currentStepNumber}
+          />
+        </Panel>
+        <PanelResizeHandle style={{ height: 6, background: 'transparent', cursor: 'ns-resize' }} />
+        <Panel
+          minSize={5}
+          defaultSize={30}
+          style={{ minHeight: 0, position: 'relative' }}
+          ref={bottomPanelRef}
+        >
+          <BottomPanel
+            onTerminalClear={() => setLogs([])}
+            minimized={bottomPanelMinimized}
+            onMinimize={handleMinimize}
+            onMaximize={handleMaximize}
           >
-            <Tabs.List>
-              <Tabs.Tab value="terminal">Terminal</Tabs.Tab>
-              <Tabs.Tab value="mock">Mock</Tabs.Tab>
-              <Tabs.Tab value="network">Network</Tabs.Tab>
-              <Tabs.Tab value="console">Console</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel
-              value="terminal"
-              style={{
-                width: '100%',
-                height: '100%',
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: 'transparent',
-                }}
-              >
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    fontFamily: 'Fira Mono, monospace',
-                    fontSize: 12,
-                    background: customColors.secondaryBg[colorScheme],
-                    color: customColors.text[colorScheme],
-                    borderRadius: 0,
-                  }}
-                >
-                  <TerminalLog logs={logs} />
-                </div>
-              </div>
-            </Tabs.Panel>
-            <Tabs.Panel value="mock" pt="xs">
-              <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
-                Mock placeholder
-              </div>
-            </Tabs.Panel>
-            <Tabs.Panel value="network" pt="xs">
-              <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
-                Network placeholder
-              </div>
-            </Tabs.Panel>
-            <Tabs.Panel value="console" pt="xs">
-              <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
-                Console placeholder
-              </div>
-            </Tabs.Panel>
-          </Tabs>
-        </div>
-      </div>
+            {/* Terminal Tab */}
+            <TerminalLog logs={logs} />
+            {/* Mock Tab */}
+            <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
+              Mock placeholder
+            </div>
+            {/* Network Tab */}
+            <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
+              Network placeholder
+            </div>
+            {/* Console Tab */}
+            <div style={{ padding: 16, color: customColors.text[colorScheme] }}>
+              Console placeholder
+            </div>
+          </BottomPanel>
+        </Panel>
+      </PanelGroup>
       {status === 'error' && error && (
         <Alert
           color="red"

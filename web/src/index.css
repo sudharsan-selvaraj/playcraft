@@ -1,0 +1,11 @@
+.debug-highlight-line-dark {
+    background-color: #274f37 !important;
+    /* GitHub diff green, or use #e6ffed */
+    border-left: 3px solid #2ea043 !important;
+    /* Optional: green border like VSCode */
+}
+
+.debug-highlight-line-light {
+    background-color: #a0dfb9 !important;
+    border-left: 3px solid #2ea043 !important;
+}

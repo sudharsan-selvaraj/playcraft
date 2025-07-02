@@ -8,7 +8,7 @@ export const designTokens = {
     },
     border: {
       light: '#d0d7de',
-      dark: '#30363d',
+      dark: '#686666',
     },
     secondaryBg: {
       light: '#f6f8fa',
@@ -77,7 +77,74 @@ export const designTokens = {
   },
 };
 
-export const customColors = designTokens.color;
+export const customColors = {
+  background: {
+    dark: '#181A1B',
+    light: '#f5f5f7', // modern light background
+  },
+  secondaryBg: {
+    dark: '#23272e',
+    light: '#e5e7eb', // modern light secondary background
+  },
+  tabBar: {
+    dark: '#2c2c32',
+    light: '#f3f3f3', // VSCode-like tab bar
+  },
+  border: {
+    dark: '#383838',
+    light: '#d1d5db', // soft gray border
+  },
+  text: {
+    dark: '#fff',
+    light: '#222', // primary text
+  },
+  textSecondary: {
+    dark: '#bbb',
+    light: '#888', // secondary text
+  },
+  icon: {
+    dark: '#d3cccc',
+    light: '#555',
+  },
+  iconBg: {
+    dark: 'rgba(255,255,255,0.08)',
+    light: 'rgba(0,0,0,0.06)',
+  },
+  accent: {
+    blue: {
+      dark: '#3b82f6',
+      light: '#2563eb',
+    },
+    green: {
+      dark: '#44BA4A',
+      light: '#44BA4A',
+    },
+    red: {
+      dark: '#c63e14',
+      light: '#ff0000',
+    },
+  },
+  iconDisabled: {
+    dark: '#666',
+    light: '#aaa',
+  },
+  primary: {
+    dark: '#58a6ff',
+    light: '#2563eb',
+  },
+  danger: {
+    dark: '#c63e14',
+    light: '#ff0000',
+  },
+  success: {
+    dark: '#44BA4A',
+    light: '#44BA4A',
+  },
+  warning: {
+    dark: '#d29922',
+    light: '#eab308',
+  },
+};
 
 export const theme = createTheme({
   primaryColor: 'blue',

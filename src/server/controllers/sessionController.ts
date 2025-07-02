@@ -41,6 +41,17 @@ export const executeCode: RequestHandler = async (req, res) => {
   res.json({ result });
 };
 
+export const stopCodeExecution: RequestHandler = async (req, res) => {
+  const { sessionId } = req.params;
+  const session = SessionManager.get(sessionId);
+  if (!session) {
+    res.status(500).json({ error: "Session not initialized" });
+    return;
+  }
+  await session.stopScriptExecution();
+  res.json({ success: true });
+};
+
 export const testLocator: RequestHandler = async (req, res) => {
   const { sessionId } = req.params;
   const { locator } = req.body;

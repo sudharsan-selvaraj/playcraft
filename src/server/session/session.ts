@@ -6,6 +6,7 @@ import fs from "fs";
 import { dirname, join, resolve } from "path";
 import { parseLocator } from "../../selector-utils";
 import { eventBus } from "../../events/eventBus";
+import { SessionEventTypes } from "@/events/eventTypes";
 
 const IFRAME_NAME = "aut-frame";
 const IFRAME_SELECTOR = `iframe[name='${IFRAME_NAME}']`;
@@ -22,6 +23,7 @@ export class Session {
   private logs: Array<{ message: string; level: string; timestamp: number }> = [];
   private status: "idle" | "execution" | "completed" | "error" = "idle";
   private lastError: string | null = null;
+  private currentStepNumber: number | null = null;
 
   constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
     this._id = crypto.randomUUID();
@@ -48,9 +50,13 @@ export class Session {
             timestamp: logEntry.timestamp,
           });
         },
-        onExecutionStarted: () => {},
-        onExecutionEnded: () => {},
-        onStepStarted: (_step: number) => {},
+        onStepStarted: (step: number) => {
+          this.currentStepNumber = step;
+          this.dispatchEvent("step-start", {
+            sessionId: this._id,
+            step,
+          });
+        },
       },
     });
   }
@@ -63,7 +69,11 @@ export class Session {
     await this.page.addInitScript(fs.readFileSync(join(rootDir, "injected/iframe.js"), "utf-8"));
 
     this.page.route("**/*", this.onRequestMade.bind(this));
-
+    this.page.on("console", (message) => {
+      if (message.type() === "error") {
+        console.log(message.text());
+      }
+    });
     await this.loadApplication();
   }
 
@@ -95,13 +105,29 @@ export class Session {
     return this.page;
   }
 
-  public async executeCode(code: string) {
+  public async stopScriptExecution() {
+    this.codeExecutor.kill();
+  }
+
+  public async executeCode(code: string, isInternalCode: boolean = false) {
+    if (isInternalCode) {
+      try {
+        const result = await this.codeExecutor.execute(code, isInternalCode);
+        return result;
+      } catch (err: any) {
+        return err;
+      }
+    }
     this.setCode(code);
     this.logs = [];
     this.status = "execution";
     this.lastError = null;
     try {
-      const result = await this.codeExecutor.execute(code);
+      this.dispatchEvent("execution-start", {
+        timestamp: Date.now(),
+        status: this.status,
+      });
+      const result = await this.codeExecutor.execute(code, false);
       this.status = "completed";
       return result;
     } catch (err: any) {
@@ -109,23 +135,35 @@ export class Session {
       this.lastError = err?.message || "Unknown error";
       throw err;
     } finally {
+      this.currentStepNumber = null;
       this.removeEventHandlers();
+      this.dispatchEvent("execution-complete", {
+        timestamp: Date.now(),
+        status: this.status,
+        error: this.lastError,
+      });
     }
   }
 
   public async testLocator(locator: string) {
     if (!locator) {
-      return await this.executeCode(`
+      return await this.executeCode(
+        `
         await Promise.all(page.frames().map((frame) => {
           return frame.locator("invalid-xpath").highlight();
         }));
-   `);
+   `,
+        true
+      );
     }
     parseLocator(locator, "data-testid");
-    return await this.executeCode(`
+    return await this.executeCode(
+      `
          await page.${locator}.highlight();
          result = await page.${locator}.count();
-    `);
+    `,
+      true
+    );
   }
 
   private get frame() {
@@ -142,6 +180,7 @@ export class Session {
     try {
       await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
     } catch (err: unknown) {
+      console.log("Error navigating to", redirectUrl, err);
       if (err instanceof Error && err.name !== "TimeoutError") {
         await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
       }
@@ -338,11 +377,18 @@ export class Session {
       logs: this.logs,
       status: this.status,
       error: this.lastError,
-      isExecuting: this.status === "execution",
+      currentStepNumber: this.currentStepNumber,
     };
   }
 
   public getLogs() {
     return this.logs;
+  }
+
+  private dispatchEvent(event: keyof SessionEventTypes, payload: any) {
+    eventBus.emit(event, {
+      sessionId: this._id,
+      ...payload,
+    });
   }
 }
