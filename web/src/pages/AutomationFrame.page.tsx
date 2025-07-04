@@ -2,10 +2,12 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  Circle,
   Globe,
   RefreshCw,
   RulerDimensionLine,
   Settings as SettingsIcon,
+  Square,
   SquareDashedMousePointer,
 } from 'lucide-react';
 import {
@@ -75,38 +77,54 @@ export function AutomationFrame() {
   const [settingsOpen, { open: openSettings, close: closeSettings }] = useDisclosure(false);
   const { settings } = useSettings();
 
+  // Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSteps, setRecordingSteps] = useState<string[]>([]);
+
   const sandboxValue = settings.allowIframeSandboxing
     ? 'allow-scripts allow-forms allow-popups allow-same-origin allow-modals allow-presentation'
     : undefined;
 
   useEffect(() => {
-    function handleIframeMessage(event: MessageEvent) {
-      if (event.data.from === 'playcraft') {
-        if (event.data.action === 'frame-loaded') {
-          iframeRef?.current?.contentWindow?.postMessage(
-            { action: showLocatorInput ? 'enable-locator' : 'disable-locator' },
-            '*'
-          );
-          setInputUrl(event.data.url);
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.from !== 'playcraft') return;
+      
+      switch (event.data.action) {
+        case 'frame-loaded':
+          setLoading(false);
+          setUrl(event.data.url);
+          break;
+        case 'navigation':
+          setUrl(event.data.url);
           const newHistory = history.slice(0, historyIndex + 1).concat(event.data.url);
           setHistory(newHistory);
           setHistoryIndex(newHistory.length - 1);
-        } else if (event.data.action === 'locator') {
+          break;
+        case 'locator':
           setLocatorInput(event.data.locator);
-        } else if (event.data.action === 'navigation' && typeof event.data.url === 'string') {
-          // setUrl(event.data.url);
-          setInputUrl(event.data.url);
-          const newHistory = history.slice(0, historyIndex + 1).concat(event.data.url);
-          setHistory(newHistory);
-          setHistoryIndex(newHistory.length - 1);
-        }
+          break;
+        case 'recording-started':
+          setIsRecording(true);
+          setRecordingSteps([]);
+          break;
+        case 'recording-stopped':
+          setIsRecording(false);
+          break;
+        case 'recording-step':
+          setRecordingSteps(prev => [...prev, event.data.code]);
+          
+          // Forward the code to the CodeEditor
+          window.postMessage({
+            action: 'insert-code',
+            code: event.data.code
+          }, '*');
+          break;
       }
-    }
-    window.addEventListener('message', handleIframeMessage);
-    return () => {
-      window.removeEventListener('message', handleIframeMessage);
     };
-  }, [showLocatorInput, historyIndex, history]);
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const goBack = () => {
     if (historyIndex > 0) {
@@ -214,6 +232,43 @@ export function AutomationFrame() {
       window.removeEventListener('resize', handleResize);
     };
   }, [device]);
+
+  // Recording control functions
+  const startRecording = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { action: 'start-recording' },
+        '*'
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { action: 'stop-recording' },
+        '*'
+      );
+    }
+  };
+
+  // Handle iframe load and set up message listener
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const handleLoad = () => {
+      setLoading(false);
+      // Re-setup message listener after iframe loads
+      iframe.contentWindow?.postMessage(
+        { action: showLocatorInput ? 'enable-locator' : 'disable-locator' },
+        '*'
+      );
+    };
+
+    iframe.addEventListener('load', handleLoad);
+    return () => iframe.removeEventListener('load', handleLoad);
+  }, [showLocatorInput]);
 
   return (
     <div
@@ -342,6 +397,45 @@ export function AutomationFrame() {
             radius={8}
             autoComplete="off"
           />
+          
+          {/* Recording Button */}
+          <ActionIcon
+            variant="light"
+            radius={8}
+            size={36}
+            style={{
+              marginLeft: 4,
+              border: `1px solid ${isRecording ? '#ff4444' : customColors.border[colorScheme]}`,
+              background: isRecording
+                ? '#ff4444'
+                : customColors.secondaryBg[colorScheme],
+              color: isRecording ? '#fff' : customColors.icon[colorScheme],
+              boxShadow: isRecording
+                ? '0 2px 8px 0 rgba(255,68,68,0.18)'
+                : '0 1px 4px 0 rgba(60,60,60,0.08)',
+              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
+              cursor: 'pointer',
+            }}
+            onMouseOver={(e) => {
+              if (!isRecording) {
+                e.currentTarget.style.background = customColors.iconBg[colorScheme];
+                e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
+                e.currentTarget.style.borderColor = customColors.icon[colorScheme];
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isRecording) {
+                e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
+                e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
+                e.currentTarget.style.borderColor = customColors.border[colorScheme];
+              }
+            }}
+            onClick={isRecording ? stopRecording : startRecording}
+            aria-label={isRecording ? 'Stop Recording' : 'Start Recording'}
+          >
+            {isRecording ? <Square size={18} /> : <Circle size={18} />}
+          </ActionIcon>
+
           <Menu shadow="md" width={220}>
             <Menu.Target>
               <ActionIcon
@@ -483,6 +577,30 @@ export function AutomationFrame() {
           </ActionIcon>
         </div>
       </div>
+      
+      {/* Recording Status Indicator */}
+      {isRecording && (
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 1200,
+            margin: '0 auto 10px auto',
+            background: '#ff4444',
+            color: '#fff',
+            padding: '8px 16px',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          <Circle size={12} style={{ fill: '#fff' }} />
+          Recording in progress... ({recordingSteps.length} steps recorded)
+        </div>
+      )}
+
       {showLocatorInput && (
         <div
           style={{
