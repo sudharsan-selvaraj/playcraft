@@ -3,6 +3,9 @@
     return;
   }
 
+  /* Fake method to avoid reportLine errors inside evaluate callbacks */
+  window.reportLine = () => {};
+
   function postMessageToParent(data) {
     window.parent.postMessage({ ...data, from: "playcraft" }, "*");
   }

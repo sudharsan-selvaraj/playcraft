@@ -9,6 +9,7 @@ import BottomPanel from '../components/BottomPanel';
 import { CodeEditor } from '../components/CodeEditor';
 import { useSocket } from '../components/SocketProvider';
 import TerminalLog from '../components/TerminalLog';
+import { ExampleLoader } from '../components/Examples/Example';
 import { customColors } from '../theme';
 import { notifications } from '@mantine/notifications';
 
@@ -200,22 +201,24 @@ export function CodePanelPage() {
         }}
       >
         {logo(colorScheme)}
-        <ActionIcon
-          variant="subtle"
-          size={32}
-          style={{
-            marginRight: 24,
-            color: customColors.icon[colorScheme],
-            background: customColors.iconBg[colorScheme],
-            border: `1px solid ${customColors.border[colorScheme]}`,
-            boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
-            transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
-          }}
-          onClick={() => setColorScheme(mantineColorScheme === 'dark' ? 'light' : 'dark')}
-          aria-label="Toggle color scheme"
-        >
-          <SunMoon size={20} />
-        </ActionIcon>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 24 }}>
+          <ExampleLoader onLoadExample={setCode} />
+          <ActionIcon
+            variant="subtle"
+            size={32}
+            style={{
+              color: customColors.icon[colorScheme],
+              background: customColors.iconBg[colorScheme],
+              border: `1px solid ${customColors.border[colorScheme]}`,
+              boxShadow: '0 1px 4px 0 rgba(60,60,60,0.08)',
+              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
+            }}
+            onClick={() => setColorScheme(mantineColorScheme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle color scheme"
+          >
+            <SunMoon size={20} />
+          </ActionIcon>
+        </div>
       </div>
 
       {/* Main Editor + Bottom Panel (Resizable) */}

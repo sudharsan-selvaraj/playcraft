@@ -116,10 +116,10 @@ export class CodeExecutor {
       parserOpts: { sourceType: "module", allowAwaitOutsideFunction: true },
       generatorOpts: { retainLines: true },
     })!;
-    writeFileSync(
-      "/Users/sudharsan/Documents/git/oss/playcraft/test-transformer.js",
-      transformed?.code ?? code
-    );
+    // writeFileSync(
+    //   "/Users/sudharsan/Documents/git/oss/playcraft/test-transformer.js",
+    //   transformed?.code ?? code
+    // );
     return transformed?.code ?? code;
   }
 

@@ -5,9 +5,9 @@ import { customColors } from '../theme';
 
 const tabList = [
   { value: 'terminal', label: 'Terminal' },
-  { value: 'mock', label: 'Mock' },
-  { value: 'network', label: 'Network' },
-  { value: 'console', label: 'Console' },
+  // { value: 'mock', label: 'Mock' },
+  // { value: 'network', label: 'Network' },
+  // { value: 'console', label: 'Console' },
 ];
 
 export default function BottomPanel({
