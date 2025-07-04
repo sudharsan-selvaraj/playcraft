@@ -71,7 +71,6 @@ export class CodeExecutor {
         console.log("Execution aborted");
         return { error: { message: "Execution aborted", type: "AbortError" } };
       }
-      console.log("Error thrown", err);
       return { error: err };
     } finally {
       this.isExecuting = false;

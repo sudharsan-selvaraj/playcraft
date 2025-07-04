@@ -69,11 +69,6 @@ export class Session {
     await this.page.addInitScript(fs.readFileSync(join(rootDir, "injected/iframe.js"), "utf-8"));
 
     this.page.route("**/*", this.onRequestMade.bind(this));
-    this.page.on("console", (message) => {
-      if (message.type() === "error") {
-        console.log(message.text());
-      }
-    });
     await this.loadApplication();
   }
 
@@ -351,7 +346,6 @@ export class Session {
         return await route.continue();
       }
     } catch (err) {
-      console.log(err);
       await route.continue();
     }
   }
