@@ -37,9 +37,9 @@ export function initSocketServer(server: http.Server) {
     }
   });
 
-  eventBus.on("execution-complete", ({ sessionId, timestamp, success, status }) => {
+  eventBus.on("execution-complete", ({ sessionId, timestamp, success, status, error }) => {
     if (io) {
-      io.to(sessionId).emit("execution-complete", { timestamp, success, status });
+      io.to(sessionId).emit("execution-complete", { timestamp, success, status, error });
     }
   });
 

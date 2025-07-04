@@ -198,6 +198,7 @@ export class CodeExecutor {
          result.error = err;
          result.line = activeLine;
        }
+      console.error(err);
        return result;
      });
     `;

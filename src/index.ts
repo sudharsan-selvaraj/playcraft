@@ -6,4 +6,12 @@ if (require.main === module) {
     console.error("Failed to start:", error);
     process.exit(1);
   });
+
+  process.on("uncaughtException", (reason) => {
+    console.error("Unaught exception reason:", reason);
+  });
+
+  process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  });
 }

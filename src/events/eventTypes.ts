@@ -9,6 +9,7 @@ export type SessionEventTypes = {
     timestamp: number;
     success: boolean;
     status: string;
+    error: any;
   }) => void;
   "step-start": (payload: { sessionId: string; step: number }) => void;
 };

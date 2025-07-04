@@ -48,7 +48,7 @@ function TerminalLog({ logs }: { logs: LogEntry[] }) {
       }}
     >
       {logs.map((log, idx) => (
-        <div key={idx} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        <div key={idx} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
           {formatLogLine(log)}
         </div>
       ))}

@@ -14,6 +14,10 @@ interface CodeEditorProps {
   onStopClick?: () => void;
   isExecuting?: boolean;
   currentStepNumber?: number | null;
+  error? : {
+    error: string;
+    line: number;
+  } | null
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -24,6 +28,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onStopClick,
   isExecuting,
   currentStepNumber,
+  error
 }) => {
   const ICON_SIZE = 16;
   const socket = useSocket();
@@ -61,7 +66,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     decorationsRef.current?.clear()
   }
 
-  const highlightLine = (line: number | null) => {
+  const highlightLine = (line: number | null, isError: boolean = false) => {
     if(!line || !editorRef.current || !monacoRef.current){
       return;
     }
@@ -71,7 +76,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         range: new monacoRef.current!.Range(line, 1, line, 1),
         options: {
           isWholeLine: true,
-          className: `debug-highlight-line-${colorScheme}`,
+          className: isError ? `error-highlight-line-${colorScheme}` : `debug-highlight-line-${colorScheme}`,
         }
       }
     ]);
@@ -84,7 +89,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
 
   useEffect(() => {
-    if (!isExecuting && editorRef.current) {
+    if(!isExecuting && error) {
+      hideHighlight();
+      highlightLine(error.line, true);
+    }
+    else if (!isExecuting && editorRef.current) {
       hideHighlight();
       setCurrentHighlightedLine(null);
     }

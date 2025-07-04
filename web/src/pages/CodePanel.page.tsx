@@ -10,6 +10,7 @@ import { CodeEditor } from '../components/CodeEditor';
 import { useSocket } from '../components/SocketProvider';
 import TerminalLog from '../components/TerminalLog';
 import { customColors } from '../theme';
+import { notifications } from '@mantine/notifications';
 
 const DEFAULT_CODE = `
 // (async ()=> {
@@ -57,7 +58,7 @@ export function CodePanelPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'execution' | 'completed' | 'error'>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{error: string, line: number} | null>(null);
   const [currentStepNumber, setCurrentStepNumber] = useState<number | null>(null);
   const socket = useSocket();
   const [bottomPanelMinimized, setBottomPanelMinimized] = useState(false);
@@ -97,10 +98,11 @@ export function CodePanelPage() {
       setError(null);
     };
 
-    const onExecutionComplete = (data: { timestamp: number; success: boolean; status: string }) => {
+    const onExecutionComplete = (data: { timestamp: number; success: boolean; status: string, error: {error: string, line: number} }) => {
       setIsExecuting(false);
       setStatus(data.status as 'idle' | 'execution' | 'completed' | 'error');
       setCurrentStepNumber(null);
+      setError(data.error)
     };
 
     const onStepStart = (data: { step: number }) => {
@@ -119,6 +121,25 @@ export function CodePanelPage() {
       socket.off('step-start', onStepStart);
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (error && error?.error) {
+      notifications.show({
+        title: 'Execution Error',
+        message:  error.error,
+        autoClose: 5000,
+        color: 'red',
+        styles: {
+          description: {
+           whiteSpace:"pre-line"
+          },
+          root:{
+            overflow: "scroll",
+          }
+        },
+      });
+    }
+  }, [error]);
 
   // Handle code execution
   const handleExecute = useCallback(async () => {
@@ -212,6 +233,7 @@ export function CodePanelPage() {
             onPlayClick={handleExecute}
             onStopClick={handleStop}
             currentStepNumber={currentStepNumber}
+            error={error}
           />
         </Panel>
         <PanelResizeHandle style={{ height: 6, background: 'transparent', cursor: 'ns-resize' }} />
@@ -244,15 +266,6 @@ export function CodePanelPage() {
           </BottomPanel>
         </Panel>
       </PanelGroup>
-      {status === 'error' && error && (
-        <Alert
-          color="red"
-          title="Execution Error"
-          style={{ position: 'absolute', bottom: 24, right: 24 }}
-        >
-          {error}
-        </Alert>
-      )}
     </div>
   );
 }

@@ -22,7 +22,7 @@ export class Session {
   private routeHandlers: Record<string | symbol, any> = {};
   private logs: Array<{ message: string; level: string; timestamp: number }> = [];
   private status: "idle" | "execution" | "completed" | "error" = "idle";
-  private lastError: string | null = null;
+  private lastError: { error: string; line: number } | null = null;
   private currentStepNumber: number | null = null;
 
   constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
@@ -128,11 +128,18 @@ export class Session {
         status: this.status,
       });
       const result = await this.codeExecutor.execute(code, false);
-      this.status = "completed";
+      this.status = result && result.error ? "error" : "completed";
+      this.lastError =
+        result && result.error
+          ? {
+              error: result.error.stack,
+              line: result.line,
+            }
+          : null;
       return result;
     } catch (err: any) {
       this.status = "error";
-      this.lastError = err?.message || "Unknown error";
+      this.lastError = err || "Unknown error";
       throw err;
     } finally {
       this.currentStepNumber = null;
