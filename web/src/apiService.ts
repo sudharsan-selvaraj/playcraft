@@ -96,4 +96,17 @@ export async function getSessionState(sessionId?: string) {
   }
 }
 
+export async function getPlaywrightTypes(filename: string) {
+  try {
+    const response = await fetch(`${BaseUrl()}/playwright-code/types/${filename}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${filename}: ${response.statusText}`);
+    }
+    return await response.text();
+  } catch (error: any) {
+    console.error('Failed to fetch playwright types:', error);
+    return null;
+  }
+}
+
 

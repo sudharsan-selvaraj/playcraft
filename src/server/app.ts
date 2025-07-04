@@ -5,6 +5,7 @@ import path from "path";
 import { getIndexHtmlPath } from "../utils";
 import cors from "cors";
 
+
 const app = express();
 
 app.use(bodyParser.json());
@@ -17,7 +18,6 @@ app.use("/api", router);
 app.use(express.static(path.join(__dirname, "../../lib/public")));
 
 app.get("/", (req, res) => {
-  console.log(req);
   res.sendFile(getIndexHtmlPath());
 });
 

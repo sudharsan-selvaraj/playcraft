@@ -183,56 +183,11 @@ export class Session {
       await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
     } catch (err: unknown) {
       console.log("Error navigating to", redirectUrl, err);
-      if (err instanceof Error && err.name !== "TimeoutError") {
-        await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
-      }
+      // if (err instanceof Error && err.name !== "TimeoutError") {
+      //   await this.frame?.goto(redirectUrl, options || { waitUntil: "networkidle" });
+      // }
     }
-    // await this.page.evaluate(
-    //   ({ url, IFRAME_SELECTOR }) => {
-    //     const iframe = document.querySelector(IFRAME_SELECTOR) as HTMLIFrameElement;
-    //     iframe.src = url;
-    //   },
-    //   { url, IFRAME_SELECTOR }
-    // );
-    // await this.frame?.waitForLoadState("networkidle");
-    // try {
-    //   await this.page.waitForFunction(
-    //     ({ iframeSelector }) => {
-    //       const iframe = document.querySelector(iframeSelector) as HTMLIFrameElement;
-    //       const isEditorLoaded = (window as any).IS_CODE_EDITOR_READY;
-    //       if (iframe) {
-    //         const iframeDocument = iframe.contentDocument || iframe?.contentWindow?.document;
-    //         return iframeDocument?.readyState === "complete";
-    //       }
-    //       return false;
-    //     },
-    //     { iframeSelector },
-    //     { timeout: 30000 }
-    //   );
-    // } catch (err) {
-    //   console.log(err);
-    // }
   }
-
-  // async loadApplication(
-  //   appUrl?: string,
-  //   options?: { waitUntil?: "networkidle" | "domcontentloaded"; referer?: string; timeout?: number }
-  // ) {
-  //   this.appUrl = appUrl || DEFAULT_APP_URL;
-  //   /**
-  //    * If the frame is already loaded, we can use it to load the application
-  //    * else, this is the first time we are loading the application
-  //    */
-  //   if (appUrl && this.frame) {
-  //     try {
-  //       await this.frame.goto(appUrl, options);
-  //     } catch (err) {
-  //       await this.navigateTo(appUrl);
-  //     }
-  //   } else {
-  //     await this.page.goto(this.serverUrl, { waitUntil: "load" });
-  //   }
-  // }
 
   async loadApplication(
     appUrl?: string,
@@ -313,19 +268,20 @@ export class Session {
           response = await route.fetch({
             timeout: 60000,
             headers: {
-              ...request.headers(),
               "sec-fetch-site": "none",
               "sec-fetch-user": "?1",
               "sec-fetch-dest": "document",
               "accept-language": "en-US,en;q=0.9",
               "cache-control": "no-cache",
               pragma: "no-cache",
+              ...request.headers(),
             },
           });
         } catch (err) {
+          console.log(err);
           return await route.continue();
         }
-        const headers = { ...response.headers() };
+        const headers = response.headers();
         const returnValue = { response } as any;
         if (patchHeaders(headers)) {
           returnValue["headers"] = headers;

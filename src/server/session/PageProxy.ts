@@ -1,3 +1,4 @@
+import { Frame, Page } from "playwright";
 import { Session } from "./session";
 
 export class PageProxy {
@@ -41,5 +42,15 @@ export class PageProxy {
   public frames() {
     const page = this.session.getPage();
     return page.frames().filter((frame) => frame !== page.mainFrame());
+  }
+
+  public async setViewportSize(width: number, height: number) {
+    return null;
+  }
+
+  private async _execute(callback: (page?: Page, frame?: Frame) => Promise<void>) {
+    const page = this.session.getPage();
+    const frame = this.session.getFrame();
+    return await callback(page, frame!);
   }
 }

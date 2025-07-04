@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -630,7 +630,6 @@ export function AutomationFrame() {
         {settings.allowIframeSandboxing ? (
           <iframe
             ref={iframeRef}
-            src={url}
             id="aut-frame"
             name="aut-frame"
             style={{

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import MonacoEditor from '@monaco-editor/react';
+import MonacoEditor, {useMonaco} from '@monaco-editor/react';
 import { Play, Square } from 'lucide-react';
 import { Tooltip } from '@mantine/core';
 import { customColors } from '../theme';
 import { ModernSpinner } from './ModernSpinner';
 import { useSocket } from './SocketProvider';
+import { getPlaywrightTypes } from '../apiService';
+
 
 interface CodeEditorProps {
   code: string;
@@ -36,7 +38,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const monacoRef = useRef<any>(null);
   const decorationsRef = useRef<any>(null);
   const currentHighlightedLineRef = useRef<number | null>(null);
+  const [typesLoaded, setTypesLoaded] = useState<boolean>(false);
   const [currentHighlightedLine, setCurrentHighlightedLine] = useState<number | null>(currentStepNumber ?? null);
+  const monaco = useMonaco();
+
+
+  useEffect(()=>{
+    if(monaco){
+      loadPlaywrightTypes(monaco);
+    }
+  }, [monaco])
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -104,7 +115,53 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     monacoRef.current = monaco;
     const currentLine = currentHighlightedLineRef.current;
     highlightLine(currentLine);
-  }, [])
+  }, []);
+
+  const loadPlaywrightTypes = useCallback(async (monaco: any) => {
+    try {
+      // Load main Playwright types
+      const types = [{
+        name: "types.d.ts",
+        path: "file:///node_modules/playwright-core/types/types.d.ts",
+        moduleName: "playwright-core"
+      }, {
+        name: "test.d.ts",
+        path: "file:///node_modules/playwright/types/test.d.ts",
+        moduleName: "playwright"
+      }]
+        const typeContent = await Promise.all(types.map(t => getPlaywrightTypes(t.name)));
+        typeContent.forEach((t, i)=> {
+          monaco.languages.typescript.typescriptDefaults.addExtraLib(
+            t,
+            types[i].path
+          );
+        })
+      
+      monaco.languages.typescript.typescriptDefaults.addExtraLib(`
+              declare const page: import('playwright-core').Page;
+              declare const expect: import('playwright').Expect<{}>;`,
+              'file:///playwright-globals.d.ts'
+      );
+
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        module: monaco.languages.typescript.ScriptTarget.ESNext,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        allowJs: true,
+        baseUrl: "file:///",
+        paths: {
+          "playwright-core": ["node_modules/playwright-core/types/types.d.ts"],
+          "playwright": ["node_modules/playwright/types/test.d.ts"],
+        } 
+      });
+
+      setTypesLoaded(true)
+
+    } catch (error) {
+      console.error('Failed to load Playwright types:', error);
+    }
+  }, []);
 
   // Config for controls
   const controls = [
@@ -138,8 +195,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         gap: 5,
       }}
     >
-      {/* VSCode-style control bar */}
-      <div
+      {typesLoaded && (
+        <>
+          {/* VSCode-style control bar */}
+          <div
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -202,7 +261,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       >
         <MonacoEditor
           height="100%"
-          defaultLanguage="javascript"
+          defaultLanguage="typescript"
           value={code}
           onChange={onCodeChange}
           theme={colorScheme === 'dark' ? 'vs-dark' : 'light'}
@@ -220,9 +279,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             wordWrap: 'on',
             lineNumbersMinChars: 2,
           }}
-          loading={<ModernSpinner />}
-        />
-      </div>
+            loading={<ModernSpinner />}
+          />
+        </div>
+      </>
+      )}
     </div>
   );
 };
