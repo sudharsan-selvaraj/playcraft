@@ -97,6 +97,7 @@
       this.initialUrl = null; // Track the initial URL when recording starts
       this.clickTimeout = null; // For debouncing single clicks vs double clicks
       this.lastClickElement = null; // Track the last clicked element
+      this.lastClickTimestamp = null; // Track the timestamp of the last click
 
       // Bind event handlers to maintain 'this' context
       this.handleClick = this.handleClick.bind(this);
@@ -445,6 +446,9 @@
       this.initialUrl = null; // Reset initial URL tracking
       this.addRecordingListeners(document);
 
+      // Start health check
+      startHealthCheck();
+
       // Send initial navigation step
       this.recordNavigation(window.location.href);
 
@@ -462,11 +466,15 @@
       this.initialUrl = null; // Reset initial URL tracking
       this.removeRecordingListeners(document);
 
+      // Stop health check
+      stopHealthCheck();
+
       // Clear any pending click timeout
       if (this.clickTimeout) {
         clearTimeout(this.clickTimeout);
         this.clickTimeout = null;
       }
+      this.lastClickTimestamp = null;
 
       // Clear tracking data
       this.focusedElements.clear();
@@ -475,6 +483,15 @@
       postMessageToParent({
         action: "recording-stopped",
       });
+    }
+
+    // Method to clear all pending timeouts and reset state
+    clearPendingTimeouts() {
+      if (this.clickTimeout) {
+        clearTimeout(this.clickTimeout);
+        this.clickTimeout = null;
+      }
+      this.lastClickTimestamp = null;
     }
 
     getStatus() {
@@ -488,6 +505,68 @@
   // Create recorder instance
   const recorder = new PlaywrightRecorder();
 
+  // Health check to monitor recording system
+  let healthCheckInterval = null;
+
+  function startHealthCheck() {
+    if (healthCheckInterval) return;
+
+    healthCheckInterval = setInterval(() => {
+      if (recorder.isRecording) {
+        // Check if there's a timeout that's been pending for too long (> 5 seconds)
+        if (recorder.clickTimeout && recorder.lastClickTimestamp) {
+          const timeSinceLastClick = Date.now() - recorder.lastClickTimestamp;
+          if (timeSinceLastClick > 5000) {
+            console.log(
+              "PlaywrightRecorder: Clearing stuck timeout after",
+              timeSinceLastClick,
+              "ms"
+            );
+            // Clear stuck timeout
+            clearTimeout(recorder.clickTimeout);
+            recorder.clickTimeout = null;
+            recorder.lastClickTimestamp = null;
+          }
+        }
+
+        // Check if event listeners are still attached by testing a dummy event
+        try {
+          const testEvent = new Event("click", { bubbles: true });
+          const testElement = document.createElement("div");
+          let listenerCalled = false;
+
+          const testListener = () => {
+            listenerCalled = true;
+          };
+          testElement.addEventListener("click", testListener);
+          testElement.dispatchEvent(testEvent);
+          testElement.removeEventListener("click", testListener);
+
+          if (!listenerCalled) {
+            console.log(
+              "PlaywrightRecorder: Event system seems broken, but this is expected for synthetic events"
+            );
+          }
+
+          // More reliable check: verify our recorder's isRecording state and re-add listeners if needed
+          if (recorder.isRecording) {
+            // Re-add listeners to ensure they're still active
+            recorder.addRecordingListeners(document);
+          }
+        } catch (e) {
+          console.log("PlaywrightRecorder: Error during health check:", e);
+        }
+      }
+    }, 1000); // Check every second
+  }
+
+  function stopHealthCheck() {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      healthCheckInterval = null;
+    }
+  }
+
   function forwardLocatorToParent(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -500,33 +579,6 @@
       action: "locator",
       locator,
     });
-  }
-
-  function notifyParentOnUrlChange() {
-    const notify = () => {
-      const newUrl = window.location.href;
-      postMessageToParent({ action: "navigation", url: newUrl });
-
-      // Record navigation if recording is active
-      recorder.recordNavigation(newUrl);
-    };
-
-    // For back/forward navigation
-    window.addEventListener("popstate", notify);
-    window.addEventListener("hashchange", notify);
-
-    // Monkey patch pushState/replaceState
-    const patchHistory = (fnName) => {
-      const orig = history[fnName];
-      history[fnName] = function (...args) {
-        const result = orig.apply(this, args);
-        notify();
-        return result;
-      };
-    };
-
-    patchHistory("pushState");
-    patchHistory("replaceState");
   }
 
   function onMouseLeaveDocument(e) {
@@ -619,8 +671,11 @@
   }
 
   window.addEventListener("DOMContentLoaded", function () {
-    notifyParentOnUrlChange();
     postMessageToParent({ action: "frame-loaded", url: window.location.href });
+
+    // Check if recording should be resumed after iframe refresh
+    postMessageToParent({ action: "recording-status-check" });
+
     window.addEventListener("message", function (e) {
       if (e.data.action === "enable-locator") {
         addLocatorListeners(document);
@@ -635,7 +690,30 @@
         recorder.start();
       } else if (e.data.action === "stop-recording") {
         recorder.stop();
+      } else if (e.data.action === "resume-recording") {
+        // Resume recording after iframe refresh
+        recorder.start();
+      } else if (e.data.action === "navigate-back") {
+        window.history.back();
+      } else if (e.data.action === "navigate-forward") {
+        window.history.forward();
+      } else if (e.data.action === "navigate-refresh") {
+        window.location.reload();
+      } else if (e.data.action === "navigate-to" && typeof e.data.url === "string") {
+        window.location.assign(e.data.url);
       }
     });
+  });
+
+  // Clear any pending timeouts when the page is about to unload
+  window.addEventListener("beforeunload", function () {
+    recorder.clearPendingTimeouts();
+  });
+
+  // Also clear timeouts when the page is hidden (e.g., tab switching)
+  window.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      recorder.clearPendingTimeouts();
+    }
   });
 })();

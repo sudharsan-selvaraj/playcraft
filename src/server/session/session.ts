@@ -69,6 +69,11 @@ export class Session {
     await this.page.addInitScript(fs.readFileSync(join(rootDir, "injected/iframe.js"), "utf-8"));
 
     this.page.route("**/*", this.onRequestMade.bind(this));
+    this.page.on("framenavigated", async (frame) => {
+      if(frame == this.frame) {
+        await this.dispatchFrameNavigationEvent(frame.url());
+      }
+    });
     await this.loadApplication();
   }
 
@@ -218,12 +223,23 @@ export class Session {
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.innerHTML = `
+      window.IFRAME_LOADING = ${appUrl ? "true" : "false"};
       window.APP_URL = "${appUrl}";
       window.SESSION_ID = "${this._id}";
       window.SERVER_URL = "${this.serverUrl}";
     `;
     document.head.appendChild(script);
     return dom.serialize();
+  }
+
+  private async dispatchFrameNavigationEvent(url: string) {
+    await this.frame?.evaluate(
+      ({ url }) => {
+        const isReady = document.readyState == 'complete';
+        window.parent.postMessage({ action: isReady ? "frame-loaded" : "frame-loading", url, from: "playcraft" }, "*");
+      },
+      { url }
+    );
   }
 
   private async onRequestMade(route: Route, request: Request) {

@@ -54,10 +54,7 @@ const DEVICES = [
 ];
 
 export function AutomationFrame() {
-  const [url, setUrl] = useState((window as any).APP_URL || 'about:blank');
-  const [inputUrl, setInputUrl] = useState(url);
-  const [history, setHistory] = useState([url]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const [url, setUrl] = useState((window as any).APP_URL);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState(DEVICES[0]);
   const [customWidth, setCustomWidth] = useState(375);
@@ -70,7 +67,7 @@ export function AutomationFrame() {
     height: window.innerHeight,
   });
   const colorScheme = useComputedColorScheme('light') as 'light' | 'dark';
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState((window as any).IFRAME_LOADING == true);
   const [locatorInput, setLocatorInput] = useState('');
   const [showLocatorInput, setShowLocatorInput] = useState(false);
   const [locatorCount, setLocatorCount] = useState<number | null>(null);
@@ -88,17 +85,17 @@ export function AutomationFrame() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.from !== 'playcraft') return;
-      
+      console.log(event)
       switch (event.data.action) {
-        case 'frame-loaded':
-          setLoading(false);
+        case 'frame-loading':
+          setLoading(true);
           setUrl(event.data.url);
           break;
-        case 'navigation':
-          setUrl(event.data.url);
-          const newHistory = history.slice(0, historyIndex + 1).concat(event.data.url);
-          setHistory(newHistory);
-          setHistoryIndex(newHistory.length - 1);
+        case 'frame-loaded':
+          if(event.data.url != "about:blank") {
+            setLoading(false);
+            setUrl(event.data.url);
+          }
           break;
         case 'locator':
           setLocatorInput(event.data.locator);
@@ -112,61 +109,51 @@ export function AutomationFrame() {
           break;
         case 'recording-step':
           setRecordingSteps(prev => [...prev, event.data.code]);
-          
           // Forward the code to the CodeEditor
           window.postMessage({
             action: 'insert-code',
             code: event.data.code
           }, '*');
           break;
+        case 'recording-status-check':
+          // If recording was active before iframe refresh, resume it
+          if (isRecording && iframeRef.current && iframeRef.current.contentWindow) {
+            iframeRef.current.contentWindow.postMessage(
+              { action: 'start-recording' },
+              '*'
+            );
+          }
+          break;
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [isRecording]);
 
-  const goBack = () => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setUrl(history[historyIndex - 1]);
-      setInputUrl(history[historyIndex - 1]);
-      refresh(history[historyIndex - 1]);
+  // Navigation actions: send message to iframe
+  const sendNavigationAction = (action: 'back' | 'forward' | 'refresh') => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ action: `navigate-${action}` }, '*');
     }
   };
 
-  const goForward = () => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setUrl(history[historyIndex + 1]);
-      setInputUrl(history[historyIndex + 1]);
-      refresh(history[historyIndex + 1]);
-    }
-  };
-
-  const refresh = (_url?: any) => {
-    if (iframeRef.current) {
-      iframeRef.current.src = _url && typeof _url === 'string' ? _url : url;
-      setLoading(true);
-    }
-  };
+  const goBack = () => sendNavigationAction('back');
+  const goForward = () => sendNavigationAction('forward');
+  const refresh = () => sendNavigationAction('refresh');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputUrl(e.target.value);
+    setUrl(e.target.value);
   };
 
   const handleInputKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      let formattedUrl = inputUrl;
+      let formattedUrl = url;
       if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = 'https://' + formattedUrl;
       }
       setLoading(true);
-      const result = await navigateToUrl(formattedUrl);
-      setLoading(false);
-      if (result.error) {
-        console.log(result.error);
-      }
+      await navigateToUrl(formattedUrl);
     }
   };
 
@@ -309,16 +296,12 @@ export function AutomationFrame() {
           <ActionIcon
             variant="subtle"
             onClick={goBack}
-            disabled={historyIndex === 0}
             size={32}
             style={{
               borderRadius: 8,
               transition: 'background 0.15s',
               background: 'transparent',
-              color:
-                historyIndex === 0
-                  ? customColors.iconDisabled[colorScheme]
-                  : customColors.icon[colorScheme],
+              color: customColors.icon[colorScheme],
             }}
           >
             <ArrowLeft size={18} />
@@ -326,16 +309,12 @@ export function AutomationFrame() {
           <ActionIcon
             variant="subtle"
             onClick={goForward}
-            disabled={historyIndex === history.length - 1}
             size={32}
             style={{
               borderRadius: 8,
               transition: 'background 0.15s',
               background: 'transparent',
-              color:
-                historyIndex === history.length - 1
-                  ? customColors.iconDisabled[colorScheme]
-                  : customColors.icon[colorScheme],
+              color: customColors.icon[colorScheme],
             }}
           >
             <ArrowRight size={18} />
@@ -379,7 +358,7 @@ export function AutomationFrame() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
           <TextInput
             type="url"
-            value={inputUrl}
+            value={url}
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             placeholder="Enter URL"
@@ -774,7 +753,7 @@ export function AutomationFrame() {
         ) : (
           <iframe
             ref={iframeRef}
-            src={url}
+            // src={url}
             id="aut-frame"
             name="aut-frame"
             style={{
