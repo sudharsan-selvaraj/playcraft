@@ -87,90 +87,52 @@
     return locatorChain;
   }
 
-  // Playwright Recorder Class
+  // New Playwright Recorder Implementation
   class PlaywrightRecorder {
     constructor() {
       this.isRecording = false;
       this.recordingStartTime = null;
-      this.focusedElements = new Map(); // Track focused elements and their initial values
-      this.lastRecordedValues = new Map(); // Track last recorded value for each element
-      this.initialUrl = null; // Track the initial URL when recording starts
-      this.clickTimeout = null; // For debouncing single clicks vs double clicks
-      this.lastClickElement = null; // Track the last clicked element
-      this.lastClickTimestamp = null; // Track the timestamp of the last click
+      this.trackedInputs = new Map(); // Track input elements and their initial values
+      this.lastClickEvent = null; // Track last click to detect double clicks
+      this.initialUrl = null;
 
-      // Bind event handlers to maintain 'this' context
+      // Bind event handlers
       this.handleClick = this.handleClick.bind(this);
+      this.handleContextMenu = this.handleContextMenu.bind(this);
       this.handleFocus = this.handleFocus.bind(this);
       this.handleBlur = this.handleBlur.bind(this);
       this.handleKeyDown = this.handleKeyDown.bind(this);
       this.handleChange = this.handleChange.bind(this);
     }
 
-    // Helper method to flush any pending input changes before other actions
-    flushPendingInputChanges(excludeElement = null) {
-      // Process all currently focused elements to record their changes
-      for (const [element, initialValue] of this.focusedElements) {
-        // Skip the element we're about to focus on
-        if (element === excludeElement) continue;
-
-        const currentValue = element.value || "";
-        const lastRecordedValue = this.lastRecordedValues.get(element) || "";
-
-        // Only record if the value has changed from initial focus value and is different from last recorded
-        if (currentValue !== initialValue && currentValue !== lastRecordedValue) {
-          const code = this.generatePlaywrightCode("fill", element, currentValue);
-          const description = `fill input with "${currentValue}"`;
-          this.sendRecordingStep(code, description);
-
-          // Update the last recorded value
-          this.lastRecordedValues.set(element, currentValue);
-        }
-      }
-
-      // Only clear elements that are not excluded
-      if (excludeElement) {
-        // Remove all elements except the excluded one
-        for (const [element] of this.focusedElements) {
-          if (element !== excludeElement) {
-            this.focusedElements.delete(element);
-          }
-        }
-      } else {
-        // Clear all focused elements
-        this.focusedElements.clear();
-      }
+    // Simple helper function to get target element
+    getTargetElement(e) {
+      const path = e.composedPath();
+      let element = path && path.length > 0 ? path[0] : e.target;
+      return element;
     }
 
-    generatePlaywrightCode(action, element, value = null, options = {}) {
+    generatePlaywrightCode(action, element, value = null) {
       const locator = getChainedLocator(element);
       const baseLocator = `page.${locator}`;
 
       switch (action) {
         case "click":
           return `await ${baseLocator}.click();`;
+        case "dblclick":
+          return `await ${baseLocator}.dblclick();`;
+        case "rightClick":
+          return `await ${baseLocator}.click({ button: 'right' });`;
         case "fill":
-          return `await ${baseLocator}.fill('${value}');`;
-        case "type":
-          return `await ${baseLocator}.type('${value}');`;
-        case "press":
-          return `await ${baseLocator}.press('${value}');`;
+          return `await ${baseLocator}.fill('${value.replace(/'/g, "\\'")}');`;
         case "check":
           return `await ${baseLocator}.check();`;
         case "uncheck":
           return `await ${baseLocator}.uncheck();`;
         case "select":
-          return `await ${baseLocator}.selectOption('${value}');`;
-        case "hover":
-          return `await ${baseLocator}.hover();`;
-        case "rightClick":
-          return `await ${baseLocator}.click({ button: 'right' });`;
-        case "doubleClick":
-          return `await ${baseLocator}.dblclick();`;
-        case "focus":
-          return `await ${baseLocator}.focus();`;
-        case "blur":
-          return `await ${baseLocator}.blur();`;
+          return `await ${baseLocator}.selectOption('${value.replace(/'/g, "\\'")}');`;
+        case "press":
+          return `await ${baseLocator}.press('${value}');`;
         default:
           return `// Unknown action: ${action}`;
       }
@@ -187,181 +149,160 @@
       });
     }
 
+    recordNavigation(url) {
+      if (!this.isRecording) return;
+
+      if (this.initialUrl === null) {
+        this.initialUrl = url;
+        const code = `await page.goto('${url}');`;
+        const description = `navigate to ${url}`;
+        this.sendRecordingStep(code, description);
+      }
+    }
+
     handleClick(e) {
       if (!this.isRecording) return;
 
-      const element = e.target;
+      // Use simplified target element detection
+      const element = this.getTargetElement(e);
+
       if (!element || element.tagName === "IFRAME" || element.tagName === "FRAME") return;
 
-      // Flush any pending input changes before processing click, but exclude the current element
-      this.flushPendingInputChanges(element);
-
-      // Skip click events for select elements as they're handled in handleChange
-      if (element.tagName === "SELECT") {
-        return;
-      }
-
-      // Record click events for input elements (except for text inputs where we only want focus)
-      // We'll record clicks for buttons, checkboxes, radios, but not for text inputs
-      const isTextInput =
-        element.tagName === "INPUT" &&
-        (element.type === "text" ||
-          element.type === "email" ||
-          element.type === "password" ||
-          element.type === "search" ||
-          element.type === "url" ||
-          element.type === "tel" ||
-          element.type === "number" ||
-          !element.type ||
-          element.type === "");
-
-      if (isTextInput || element.tagName === "TEXTAREA") {
-        // For text inputs and textareas, always record the click
-        // This ensures proper test generation for focusing inputs
-        const code = this.generatePlaywrightCode("click", element);
-        const description = `click on ${element.tagName.toLowerCase()}${
-          element.id ? "#" + element.id : ""
-        }`;
-        this.sendRecordingStep(code, description);
-        return;
-      }
-
-      // Handle double-click detection
-      if (e.detail === 2) {
-        // This is a double-click, clear any pending single click
-        if (this.clickTimeout) {
-          clearTimeout(this.clickTimeout);
-          this.clickTimeout = null;
+      // Handle double click detection
+      if (
+        this.lastClickEvent &&
+        this.lastClickEvent.target === element &&
+        e.timeStamp - this.lastClickEvent.timeStamp < 500
+      ) {
+        // This is a double click
+        try {
+          const code = this.generatePlaywrightCode("dblclick", element);
+          const description = `double click on ${this.getElementDescription(element)}`;
+          this.sendRecordingStep(code, description);
+        } catch (error) {
+          console.warn("Failed to generate double click code:", error);
         }
-
-        // Record double-click immediately
-        let action = "doubleClick";
-        if (e.button === 2) action = "rightClick"; // Right double-click should still be rightClick
-
-        const code = this.generatePlaywrightCode(action, element);
-        const description = `${action} on ${element.tagName.toLowerCase()}${
-          element.id ? "#" + element.id : ""
-        }`;
-        this.sendRecordingStep(code, description);
+        this.lastClickEvent = null; // Reset to prevent triple clicks
         return;
       }
 
-      // Handle single click with debounce to avoid conflicts with double-click
-      if (this.clickTimeout) {
-        clearTimeout(this.clickTimeout);
-      }
+      // Store this click event for double click detection
+      this.lastClickEvent = { target: element, timeStamp: e.timeStamp };
 
-      this.clickTimeout = setTimeout(() => {
-        // Determine click type
-        let action = "click";
-        if (e.button === 2) action = "rightClick";
-
-        // Handle form elements (only for left clicks)
-        if (e.button === 0) {
-          // Left click only
-          if (element.type === "checkbox") {
-            action = element.checked ? "check" : "uncheck";
-          } else if (element.type === "radio") {
-            action = "check"; // Radio buttons are always checked when clicked
-          }
+      try {
+        // Handle different element types
+        if (element.type === "checkbox") {
+          const action = element.checked ? "check" : "uncheck";
+          const code = this.generatePlaywrightCode(action, element);
+          const description = `${action} ${this.getElementDescription(element)}`;
+          this.sendRecordingStep(code, description);
+        } else if (element.type === "radio") {
+          const code = this.generatePlaywrightCode("check", element);
+          const description = `check ${this.getElementDescription(element)}`;
+          this.sendRecordingStep(code, description);
+        } else if (element.tagName === "SELECT") {
+          // Don't record click for select - will be handled by change event
+          return;
+        } else {
+          // Regular click
+          const code = this.generatePlaywrightCode("click", element);
+          const description = `click on ${this.getElementDescription(element)}`;
+          this.sendRecordingStep(code, description);
         }
+      } catch (error) {
+        console.warn("Failed to generate click code:", error);
+      }
+    }
 
-        const code = this.generatePlaywrightCode(action, element);
-        const description = `${action} on ${element.tagName.toLowerCase()}${
-          element.id ? "#" + element.id : ""
-        }`;
+    handleContextMenu(e) {
+      if (!this.isRecording) return;
+
+      // Use simplified target element detection
+      const element = this.getTargetElement(e);
+
+      if (!element || element.tagName === "IFRAME" || element.tagName === "FRAME") return;
+
+      try {
+        const code = this.generatePlaywrightCode("rightClick", element);
+        const description = `right click on ${this.getElementDescription(element)}`;
         this.sendRecordingStep(code, description);
-
-        this.clickTimeout = null;
-      }, 300); // 300ms debounce to detect double-clicks
+      } catch (error) {
+        console.warn("Failed to generate right click code:", error);
+      }
     }
 
     handleFocus(e) {
       if (!this.isRecording) return;
 
-      const element = e.target;
+      // Use the generic target element detection
+      const element = this.getTargetElement(e);
+
       if (!element) return;
 
-      // Only track focus for input elements that can contain text
-      if (
-        element.tagName === "INPUT" &&
-        element.type !== "checkbox" &&
-        element.type !== "radio" &&
-        element.type !== "button" &&
-        element.type !== "submit"
-      ) {
-        this.focusedElements.set(element, element.value || "");
-      } else if (element.tagName === "TEXTAREA") {
-        this.focusedElements.set(element, element.value || "");
+      // Track input elements when they receive focus
+      if (this.isInputElement(element)) {
+        this.trackedInputs.set(element, element.value || "");
       }
     }
 
     handleBlur(e) {
       if (!this.isRecording) return;
 
-      const element = e.target;
+      // Use the generic target element detection
+      const element = this.getTargetElement(e);
+
       if (!element) return;
 
-      // Check if this element was being tracked
-      if (this.focusedElements.has(element)) {
-        const initialValue = this.focusedElements.get(element);
+      // Check if input value changed and record fill event
+      if (this.trackedInputs.has(element)) {
+        const initialValue = this.trackedInputs.get(element);
         const currentValue = element.value || "";
-        const lastRecordedValue = this.lastRecordedValues.get(element) || "";
 
-        // Only record if the value has changed from initial focus value and is different from last recorded
-        if (currentValue !== initialValue && currentValue !== lastRecordedValue) {
+        if (currentValue !== initialValue) {
           const code = this.generatePlaywrightCode("fill", element, currentValue);
-          const description = `fill input with "${currentValue}"`;
+          const description = `fill ${this.getElementDescription(element)} with "${currentValue}"`;
           this.sendRecordingStep(code, description);
-
-          // Update the last recorded value
-          this.lastRecordedValues.set(element, currentValue);
         }
 
-        // Remove from focused elements
-        this.focusedElements.delete(element);
+        this.trackedInputs.delete(element);
       }
     }
 
     handleKeyDown(e) {
       if (!this.isRecording) return;
 
-      const element = e.target;
+      // Use the generic target element detection
+      const element = this.getTargetElement(e);
+
       if (!element) return;
 
-      // Special handling for Enter key in input fields
-      if (e.key === "Enter" && this.focusedElements.has(element)) {
-        // First, handle the input value change (like blur would do)
-        const initialValue = this.focusedElements.get(element);
-        const currentValue = element.value || "";
-        const lastRecordedValue = this.lastRecordedValues.get(element) || "";
+      // Handle Enter key in input fields
+      if (e.key === "Enter" && this.isInputElement(element)) {
+        // First record fill if value changed
+        if (this.trackedInputs.has(element)) {
+          const initialValue = this.trackedInputs.get(element);
+          const currentValue = element.value || "";
 
-        // Record fill event if value changed
-        if (currentValue !== initialValue && currentValue !== lastRecordedValue) {
-          const fillCode = this.generatePlaywrightCode("fill", element, currentValue);
-          const fillDescription = `fill input with "${currentValue}"`;
-          this.sendRecordingStep(fillCode, fillDescription);
+          if (currentValue !== initialValue) {
+            const fillCode = this.generatePlaywrightCode("fill", element, currentValue);
+            const fillDescription = `fill ${this.getElementDescription(
+              element
+            )} with "${currentValue}"`;
+            this.sendRecordingStep(fillCode, fillDescription);
+          }
 
-          // Update the last recorded value
-          this.lastRecordedValues.set(element, currentValue);
+          this.trackedInputs.delete(element);
         }
 
-        // Then record the Enter key press
+        // Then record the Enter press
         const pressCode = this.generatePlaywrightCode("press", element, "Enter");
-        const pressDescription = `press Enter`;
+        const pressDescription = `press Enter in ${this.getElementDescription(element)}`;
         this.sendRecordingStep(pressCode, pressDescription);
-
-        // Remove from focused elements since Enter typically submits/completes the input
-        this.focusedElements.delete(element);
-        return;
       }
-
-      // For other special keys, flush pending changes first
-      const specialKeys = ["Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-      if (specialKeys.includes(e.key)) {
-        // Flush any pending input changes before processing the key press
-        this.flushPendingInputChanges();
-
+      // Handle other special keys
+      else if (
+        ["Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+      ) {
         const code = this.generatePlaywrightCode("press", element, e.key);
         const description = `press ${e.key}`;
         this.sendRecordingStep(code, description);
@@ -371,40 +312,39 @@
     handleChange(e) {
       if (!this.isRecording) return;
 
-      // Flush any pending input changes before processing change event
-      this.flushPendingInputChanges();
+      // Use the generic target element detection
+      const element = this.getTargetElement(e);
 
-      const element = e.target;
       if (!element) return;
 
       if (element.tagName === "SELECT") {
         const selectedOption = element.options[element.selectedIndex];
         const value = selectedOption ? selectedOption.value : "";
         const code = this.generatePlaywrightCode("select", element, value);
-        const description = `select option "${selectedOption?.text || value}"`;
+        const description = `select "${
+          selectedOption?.text || value
+        }" from ${this.getElementDescription(element)}`;
         this.sendRecordingStep(code, description);
       }
     }
 
-    recordNavigation(url) {
-      if (!this.isRecording) return;
+    isInputElement(element) {
+      return (
+        (element.tagName === "INPUT" &&
+          !["checkbox", "radio", "button", "submit", "reset", "file"].includes(element.type)) ||
+        element.tagName === "TEXTAREA"
+      );
+    }
 
-      // Flush any pending input changes before navigation
-      this.flushPendingInputChanges();
-
-      // Only record navigation if this is the initial URL when recording starts
-      if (this.initialUrl === null) {
-        this.initialUrl = url;
-        const code = `await page.goto('${url}');`;
-        const description = `navigate to ${url}`;
-        this.sendRecordingStep(code, description);
-      }
-      // Don't record subsequent navigations (like clicking links) as they should be handled by click events
+    getElementDescription(element) {
+      if (element.id) return `#${element.id}`;
+      if (element.name) return `[name="${element.name}"]`;
+      return element.tagName.toLowerCase();
     }
 
     addRecordingListeners(doc) {
       doc.addEventListener("click", this.handleClick, true);
-      doc.addEventListener("contextmenu", this.handleClick, true); // Capture right-click events
+      doc.addEventListener("contextmenu", this.handleContextMenu, true);
       doc.addEventListener("focus", this.handleFocus, true);
       doc.addEventListener("blur", this.handleBlur, true);
       doc.addEventListener("keydown", this.handleKeyDown, true);
@@ -416,13 +356,15 @@
           if (frame.contentDocument) {
             this.addRecordingListeners(frame.contentDocument);
           }
-        } catch (e) {}
+        } catch (e) {
+          // Cross-origin frame, ignore
+        }
       });
     }
 
     removeRecordingListeners(doc) {
       doc.removeEventListener("click", this.handleClick, true);
-      doc.removeEventListener("contextmenu", this.handleClick, true); // Remove right-click event listener
+      doc.removeEventListener("contextmenu", this.handleContextMenu, true);
       doc.removeEventListener("focus", this.handleFocus, true);
       doc.removeEventListener("blur", this.handleBlur, true);
       doc.removeEventListener("keydown", this.handleKeyDown, true);
@@ -434,7 +376,9 @@
           if (frame.contentDocument) {
             this.removeRecordingListeners(frame.contentDocument);
           }
-        } catch (e) {}
+        } catch (e) {
+          // Cross-origin frame, ignore
+        }
       });
     }
 
@@ -443,13 +387,11 @@
 
       this.isRecording = true;
       this.recordingStartTime = Date.now();
-      this.initialUrl = null; // Reset initial URL tracking
+      this.initialUrl = null;
+      this.trackedInputs.clear();
+      this.lastClickEvent = null;
+
       this.addRecordingListeners(document);
-
-      // Start health check
-      startHealthCheck();
-
-      // Send initial navigation step
       this.recordNavigation(window.location.href);
 
       postMessageToParent({
@@ -463,35 +405,15 @@
 
       this.isRecording = false;
       this.recordingStartTime = null;
-      this.initialUrl = null; // Reset initial URL tracking
+      this.initialUrl = null;
+      this.trackedInputs.clear();
+      this.lastClickEvent = null;
+
       this.removeRecordingListeners(document);
-
-      // Stop health check
-      stopHealthCheck();
-
-      // Clear any pending click timeout
-      if (this.clickTimeout) {
-        clearTimeout(this.clickTimeout);
-        this.clickTimeout = null;
-      }
-      this.lastClickTimestamp = null;
-
-      // Clear tracking data
-      this.focusedElements.clear();
-      this.lastRecordedValues.clear();
 
       postMessageToParent({
         action: "recording-stopped",
       });
-    }
-
-    // Method to clear all pending timeouts and reset state
-    clearPendingTimeouts() {
-      if (this.clickTimeout) {
-        clearTimeout(this.clickTimeout);
-        this.clickTimeout = null;
-      }
-      this.lastClickTimestamp = null;
     }
 
     getStatus() {
@@ -504,68 +426,6 @@
 
   // Create recorder instance
   const recorder = new PlaywrightRecorder();
-
-  // Health check to monitor recording system
-  let healthCheckInterval = null;
-
-  function startHealthCheck() {
-    if (healthCheckInterval) return;
-
-    healthCheckInterval = setInterval(() => {
-      if (recorder.isRecording) {
-        // Check if there's a timeout that's been pending for too long (> 5 seconds)
-        if (recorder.clickTimeout && recorder.lastClickTimestamp) {
-          const timeSinceLastClick = Date.now() - recorder.lastClickTimestamp;
-          if (timeSinceLastClick > 5000) {
-            console.log(
-              "PlaywrightRecorder: Clearing stuck timeout after",
-              timeSinceLastClick,
-              "ms"
-            );
-            // Clear stuck timeout
-            clearTimeout(recorder.clickTimeout);
-            recorder.clickTimeout = null;
-            recorder.lastClickTimestamp = null;
-          }
-        }
-
-        // Check if event listeners are still attached by testing a dummy event
-        try {
-          const testEvent = new Event("click", { bubbles: true });
-          const testElement = document.createElement("div");
-          let listenerCalled = false;
-
-          const testListener = () => {
-            listenerCalled = true;
-          };
-          testElement.addEventListener("click", testListener);
-          testElement.dispatchEvent(testEvent);
-          testElement.removeEventListener("click", testListener);
-
-          if (!listenerCalled) {
-            console.log(
-              "PlaywrightRecorder: Event system seems broken, but this is expected for synthetic events"
-            );
-          }
-
-          // More reliable check: verify our recorder's isRecording state and re-add listeners if needed
-          if (recorder.isRecording) {
-            // Re-add listeners to ensure they're still active
-            recorder.addRecordingListeners(document);
-          }
-        } catch (e) {
-          console.log("PlaywrightRecorder: Error during health check:", e);
-        }
-      }
-    }, 1000); // Check every second
-  }
-
-  function stopHealthCheck() {
-    if (healthCheckInterval) {
-      clearInterval(healthCheckInterval);
-      healthCheckInterval = null;
-    }
-  }
 
   function forwardLocatorToParent(e) {
     e.preventDefault();
@@ -703,17 +563,5 @@
         window.location.assign(e.data.url);
       }
     });
-  });
-
-  // Clear any pending timeouts when the page is about to unload
-  window.addEventListener("beforeunload", function () {
-    recorder.clearPendingTimeouts();
-  });
-
-  // Also clear timeouts when the page is hidden (e.g., tab switching)
-  window.addEventListener("visibilitychange", function () {
-    if (document.hidden) {
-      recorder.clearPendingTimeouts();
-    }
   });
 })();
