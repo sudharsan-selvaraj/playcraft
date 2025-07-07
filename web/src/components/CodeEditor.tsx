@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import MonacoEditor, {useMonaco} from '@monaco-editor/react';
+import MonacoEditor, {useMonaco, loader} from '@monaco-editor/react';
 import { Play, Square, Copy, Trash2 } from 'lucide-react';
 import { Tooltip } from '@mantine/core';
 import { customColors } from '../theme';
@@ -32,6 +32,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   currentStepNumber,
   error
 }) => {
+
+  //Configure monaco loader to server static files from local instead of CDN
+  loader.config({
+    paths: {
+      vs: '/assets/monaco-editor/vs',
+    },
+  });
+
   const ICON_SIZE = 16;
   const socket = useSocket();
   const editorRef = useRef<any>(null);
