@@ -1,7 +1,10 @@
 {
   "name": "playcraft",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "lib/index.js",
+  "bin": {
+    "playcraft": "./lib/playcraft.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "path-exists lib/scripts/install-deps.js && node lib/scripts/install-deps.js || ts-node src/scripts/install-deps.ts",
