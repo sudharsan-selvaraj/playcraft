@@ -1,5 +1,38 @@
+const TodoExample = `
+async function refreshToDoList() {
+  await page.evaluate(()=> {
+    localStorage.clear();
+  });
+}
+
+async function addTodo(todo) {
+  await page.getByRole('textbox', { name: 'What needs to be done?' }).click();
+  await page.getByRole('textbox', { name: 'What needs to be done?' }).fill(todo);
+  await page.getByRole('textbox', { name: 'What needs to be done?' }).press('Enter');
+
+  // wait for 1 second
+  await new Promise(r => setTimeout(r, 1000));
+}
+
+/* Add Todo Test */
+await page.goto('https://demo.playwright.dev/todomvc');
+const TODO = [
+  "Create Playwright Tests",
+  "Fix login bug",
+  "Submit expense report",
+  "Buy milk"
+];
+
+for(const todo of TODO) {
+  await addTodo(todo)
+}
+
+await refreshToDoList();
+// this will fail
+await expect(page.getByTestId("todo-title")).toHaveCount(5)
+`;
+
 const TabExample = `
-/*  */
 await page.goto("https://the-internet.herokuapp.com/windows");
 
 const [newPage] = await Promise.all([
@@ -106,38 +139,43 @@ await expect(page.getByText('Playwright', { exact: true })).toBeVisible();
 
 export const examples = [
     {
+        name: "Todo List Example",
+        description: "Example to demonstrate adding todos to a list",
+        code: TodoExample
+    },
+    {
         name: "Tab Example",
-        desciption: "Example to demonstrate switching to a new tab",
+        description: "Example to demonstrate switching to a new tab",
         code: TabExample
     },
     {
         name: "Form Interaction",
-        desciption: "Fill and submit a login form with validation",
+        description: "Fill and submit a login form with validation",
         code: FormExample
     },
     {
         name: "Dropdown Selection",
-        desciption: "Select options from a dropdown menu",
+        description: "Select options from a dropdown menu",
         code: DropdownExample
     },
     {
         name: "Hover Actions",
-        desciption: "Perform hover interactions and capture results",
+        description: "Perform hover interactions and capture results",
         code: HoverExample
     },
     {
         name: "Wait Strategies",
-        desciption: "Different ways to wait for elements and content",
+        description: "Different ways to wait for elements and content",
         code: WaitExample
     },
     {
         name: "Api Mocking",
-        desciption: "Mocking API responses for testing",
+        description: "Mocking API responses for testing",
         code: ApiMockExample
     },
     {
         name: "Screenshots",
-        desciption: "Take full page and element screenshots",
+        description: "Take full page and element screenshots",
         code: ScreenshotExample
     }
 ]

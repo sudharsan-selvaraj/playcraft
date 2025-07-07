@@ -12,38 +12,9 @@ import TerminalLog from '../components/TerminalLog';
 import { ExampleLoader } from '../components/Examples/Example';
 import { customColors } from '../theme';
 import { notifications } from '@mantine/notifications';
+import { examples } from '../components/Examples/examples';
 
-const DEFAULT_CODE = `
-// (async ()=> {
-//   await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
-//   console.log('Page loaded', await page.title());
-//   await page.locator(".DocSearch-Button-Placeholder").click();
-//   await page.locator("#docsearch-input").fill("locators");
-//   await page.locator(".DocSearch-Hit-title").filter({ hasText: "Filtering Locators" }).click()
-// })()
-
-
-async function demo() {
-  await page.locator(".DocSearch-Button-Placeholder").click();
-  await page.locator("#docsearch-input").fill("locators");
-}
-
-async function waitFor() {
-  try {
-    await page.waitForSelector("sudharsan", {state: "visible", timeout: 2000})
-  } catch(err) {
-    console.error(err);
-  }
-}
-
-(async ()=> {
-  await page.goto('https://www.playwright.dev', { waitUntil: 'networkidle' });
-  console.log('Page loaded', await page.title());
-  await demo();
-  await page.locator(".DocSearch-Hit-title").filter({ hasText: "Filtering Locators" }).click()
-  await waitFor()
-})()
-`;
+const DEFAULT_CODE = examples[0].code; // TODO list example
 
 const logo = (colorScheme: 'dark' | 'light') => {
   const img = colorScheme === 'dark' ? PlayCraftLogoDark : PlayCraftLogoLight;
@@ -55,7 +26,7 @@ const logo = (colorScheme: 'dark' | 'light') => {
 export function CodePanelPage() {
   const colorScheme = useComputedColorScheme('dark');
   const { colorScheme: mantineColorScheme, setColorScheme } = useMantineColorScheme();
-  const [code, setCode] = useState(DEFAULT_CODE.trim());
+  const [code, setCode] = useState(DEFAULT_CODE); // TODO list example
   const [logs, setLogs] = useState<any[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'execution' | 'completed' | 'error'>('idle');

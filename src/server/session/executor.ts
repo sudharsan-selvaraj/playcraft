@@ -87,7 +87,6 @@ export class CodeExecutor {
           console.log("Execution aborted");
           return { error: { message: "Execution aborted", type: "AbortError" } };
         }
-        console.log(result);
       }
       return result;
     })();
@@ -117,7 +116,7 @@ export class CodeExecutor {
       generatorOpts: { retainLines: true },
     })!;
     // writeFileSync(
-    //   "/Users/sudharsan/Documents/git/oss/playcraft/test-transformer.js",
+    //   "playcraft/test-transformer.js",
     //   transformed?.code ?? code
     // );
     return transformed?.code ?? code;

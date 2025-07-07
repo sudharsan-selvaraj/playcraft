@@ -246,7 +246,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       key: 'clear',
       icon: Trash2,
       tooltip: 'Clear',
-      color: '#ff6b6b',
+      color: customColors.icon[colorScheme],
       onClick: handleClearCode,
       disabled: !code || code.trim() === '',
       active: true,
@@ -255,7 +255,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       key: 'copy',
       icon: Copy,
       tooltip: 'Copy',
-      color: '#4c6ef5',
+      color: customColors.icon[colorScheme],
       onClick: handleCopyCode,
       disabled: !code || code.trim() === '',
       active: true,
@@ -277,6 +277,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       onClick: !isExecuting ? onPlayClick : undefined,
       disabled: isExecuting,
       active: !isExecuting,
+      fill:true
     },
     {
       key: 'stop',
@@ -286,6 +287,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       onClick: isExecuting && onStopClick ? onStopClick : undefined,
       disabled: !isExecuting,
       active: isExecuting,
+      fill:true
     },
   ];
 
@@ -316,7 +318,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               alignSelf: 'flex-end',
             }}
           >
-            {controls.map(({ key, icon: Icon, tooltip, color, onClick, disabled, active }) => {
+            {controls.map(({ key, icon: Icon, tooltip, color, onClick, disabled, active, fill }) => {
               if (key === 'separator') {
                 return (
                   <div
@@ -366,7 +368,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     {Icon && (
                       <Icon
                         size={ICON_SIZE}
-                        fill={active ? color : customColors.iconDisabled[colorScheme]}
+                        fill={fill && (active ? color : customColors.iconDisabled[colorScheme]) || 'none'}
                       />
                     )}
                   </button>
@@ -379,6 +381,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               border: `1px solid ${colorScheme === 'dark' ? '#222' : '#ddd'}`,
               width: '100%',
               height: '100%',
+              position: 'relative',
+              zIndex: 10,
             }}
           >
             <MonacoEditor
@@ -400,6 +404,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 lineHeight: 20,
                 wordWrap: 'on',
                 lineNumbersMinChars: 2,
+                fixedOverflowWidgets: true,
               }}
                 loading={<ModernSpinner />}
               />

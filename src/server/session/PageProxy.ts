@@ -30,6 +30,7 @@ export class PageProxy {
   }
 
   public on(event: string, callback: any) {
+    // const fn = this.constructEventCallback(event, callback)
     this.session.onEventHandlerAdded(event, callback);
     return this.session.getPage().on(event as any, callback);
   }

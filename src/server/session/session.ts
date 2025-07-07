@@ -294,7 +294,6 @@ export class Session {
             },
           });
         } catch (err) {
-          console.log(err);
           return await route.continue();
         }
         const headers = response.headers();

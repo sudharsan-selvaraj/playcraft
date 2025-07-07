@@ -19,6 +19,7 @@ import {
   NumberInput,
   rem,
   TextInput,
+  Tooltip,
   useComputedColorScheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -378,42 +379,97 @@ export function AutomationFrame() {
           />
           
           {/* Recording Button */}
-          <ActionIcon
-            variant="light"
-            radius={8}
-            size={36}
-            style={{
-              marginLeft: 4,
-              border: `1px solid ${isRecording ? '#ff4444' : customColors.border[colorScheme]}`,
-              background: isRecording
-                ? '#ff4444'
-                : customColors.secondaryBg[colorScheme],
-              color: isRecording ? '#fff' : customColors.icon[colorScheme],
-              boxShadow: isRecording
-                ? '0 2px 8px 0 rgba(255,68,68,0.18)'
-                : '0 1px 4px 0 rgba(60,60,60,0.08)',
-              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
-              cursor: 'pointer',
-            }}
-            onMouseOver={(e) => {
-              if (!isRecording) {
+          <Tooltip label={isRecording ? 'Stop Recording' : 'Start Recording'} position="bottom">
+            <div
+              onClick={isRecording ? stopRecording : startRecording}
+              style={{
+                marginLeft: 4,
+                padding: 8,
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isRecording ? '#ff4444' : customColors.icon[colorScheme],
+                transition: 'color 0.15s, background 0.15s',
+                background: 'transparent',
+              }}
+              onMouseOver={(e) => {
                 e.currentTarget.style.background = customColors.iconBg[colorScheme];
-                e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
-                e.currentTarget.style.borderColor = customColors.icon[colorScheme];
-              }
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              {isRecording ? <Square size={18} /> : <Circle size={18} />}
+            </div>
+          </Tooltip>
+
+          <Tooltip label="Element Inspector" position="bottom">
+            <div
+              onClick={async () => {
+                if (showLocatorInput) {
+                  // About to hide, so call testLocator("")
+                  try {
+                    if (iframeRef.current && iframeRef.current.contentWindow) {
+                      iframeRef.current.contentWindow.postMessage(
+                        { action: 'clear-highlights' },
+                        '*'
+                      );
+                    }
+                    const result = await testLocator('');
+                    setLocatorCount(typeof result.result === 'number' ? result.result : null);
+                    setLocatorInput('');
+                  } catch (err) {
+                    setLocatorCount(null);
+                    setLocatorInput('');
+                    console.error('Locator test error:', err);
+                  }
+                }
+                setShowLocatorInput((v) => {
+                  const next = !v;
+                  if (iframeRef.current && iframeRef.current.contentWindow) {
+                    iframeRef.current.contentWindow.postMessage(
+                      { action: next ? 'enable-locator' : 'disable-locator' },
+                      '*'
+                    );
+                  }
+                  return next;
+                });
+              }}
+              style={{
+                marginLeft: 4,
+                padding: 8,
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: showLocatorInput ? customColors.primary[colorScheme] : customColors.icon[colorScheme],
+                transition: 'color 0.15s, background 0.15s',
+                background: 'transparent',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = customColors.iconBg[colorScheme];
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <SquareDashedMousePointer size={20} />
+            </div>
+          </Tooltip>
+
+          {/* Separator */}
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              background: customColors.border[colorScheme],
+              marginLeft: 8,
+              marginRight: 4,
             }}
-            onMouseOut={(e) => {
-              if (!isRecording) {
-                e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
-                e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
-                e.currentTarget.style.borderColor = customColors.border[colorScheme];
-              }
-            }}
-            onClick={isRecording ? stopRecording : startRecording}
-            aria-label={isRecording ? 'Stop Recording' : 'Start Recording'}
-          >
-            {isRecording ? <Square size={18} /> : <Circle size={18} />}
-          </ActionIcon>
+          />
 
           <Menu shadow="md" width={220}>
             <Menu.Target>
@@ -462,70 +518,6 @@ export function AutomationFrame() {
               ))}
             </Menu.Dropdown>
           </Menu>
-          <ActionIcon
-            variant="light"
-            radius={8}
-            size={36}
-            style={{
-              marginLeft: 4,
-              border: `1px solid ${showLocatorInput ? customColors.primary[colorScheme] : customColors.border[colorScheme]}`,
-              background: showLocatorInput
-                ? customColors.primary[colorScheme]
-                : customColors.secondaryBg[colorScheme],
-              color: showLocatorInput ? '#fff' : customColors.icon[colorScheme],
-              boxShadow: showLocatorInput
-                ? '0 2px 8px 0 rgba(9,105,218,0.18)'
-                : '0 1px 4px 0 rgba(60,60,60,0.08)',
-              transition: 'background 0.15s, box-shadow 0.15s, border-color 0.15s',
-              cursor: 'pointer',
-            }}
-            onMouseOver={(e) => {
-              if (!showLocatorInput) {
-                e.currentTarget.style.background = customColors.iconBg[colorScheme];
-                e.currentTarget.style.boxShadow = '0 2px 8px 0 rgba(60,60,60,0.12)';
-                e.currentTarget.style.borderColor = customColors.icon[colorScheme];
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!showLocatorInput) {
-                e.currentTarget.style.background = customColors.secondaryBg[colorScheme];
-                e.currentTarget.style.boxShadow = '0 1px 4px 0 rgba(60,60,60,0.08)';
-                e.currentTarget.style.borderColor = customColors.border[colorScheme];
-              }
-            }}
-            onClick={async () => {
-              if (showLocatorInput) {
-                // About to hide, so call testLocator("")
-                try {
-                  if (iframeRef.current && iframeRef.current.contentWindow) {
-                    iframeRef.current.contentWindow.postMessage(
-                      { action: 'clear-highlights' },
-                      '*'
-                    );
-                  }
-                  const result = await testLocator('');
-                  setLocatorCount(typeof result.result === 'number' ? result.result : null);
-                  setLocatorInput('');
-                } catch (err) {
-                  setLocatorCount(null);
-                  setLocatorInput('');
-                  console.error('Locator test error:', err);
-                }
-              }
-              setShowLocatorInput((v) => {
-                const next = !v;
-                if (iframeRef.current && iframeRef.current.contentWindow) {
-                  iframeRef.current.contentWindow.postMessage(
-                    { action: next ? 'enable-locator' : 'disable-locator' },
-                    '*'
-                  );
-                }
-                return next;
-              });
-            }}
-          >
-            <SquareDashedMousePointer size={20} />
-          </ActionIcon>
           <ActionIcon
             variant="light"
             radius={8}

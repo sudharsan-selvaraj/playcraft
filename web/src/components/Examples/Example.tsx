@@ -118,7 +118,7 @@ export function ExampleLoader({ onLoadExample }: ExampleLoaderProps) {
                       )}
                     </Group>
                     <Text size="xs" c="dimmed" style={{ lineHeight: 1.4 }}>
-                      {example.desciption}
+                      {example.description}
                     </Text>
                   </Card>
                 ))}
@@ -136,7 +136,7 @@ export function ExampleLoader({ onLoadExample }: ExampleLoaderProps) {
                       {selectedExample.name}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      {selectedExample.desciption}
+                      {selectedExample.description}
                     </Text>
                   </div>
                   <Button
