@@ -3,7 +3,7 @@ import { JSDOM } from "jsdom";
 import { getRedirectUrl, isSameDomain, patchHeaders } from "../../utils";
 import { CodeExecutor } from "./executor";
 import fs from "fs";
-import { dirname, join, resolve } from "path";
+import path, { join } from "path";
 import { parseLocator } from "../../selector-utils";
 import { eventBus } from "../../events/eventBus";
 import { SessionEventTypes } from "@/events/eventTypes";
@@ -62,7 +62,7 @@ export class Session {
   }
 
   public async init() {
-    const rootDir = join(resolve(dirname("")));
+    const rootDir = path.resolve(__dirname, "../../../");
     await this.page.addInitScript(
       fs.readFileSync(join(rootDir, "injected/injectedScriptSource.js"), "utf-8")
     );
@@ -70,7 +70,7 @@ export class Session {
 
     this.page.route("**/*", this.onRequestMade.bind(this));
     this.page.on("framenavigated", async (frame) => {
-      if(frame == this.frame) {
+      if (frame == this.frame) {
         await this.dispatchFrameNavigationEvent(frame.url());
       }
     });
@@ -235,8 +235,11 @@ export class Session {
   private async dispatchFrameNavigationEvent(url: string) {
     await this.frame?.evaluate(
       ({ url }) => {
-        const isReady = document.readyState == 'complete';
-        window.parent.postMessage({ action: isReady ? "frame-loaded" : "frame-loading", url, from: "playcraft" }, "*");
+        const isReady = document.readyState == "complete";
+        window.parent.postMessage(
+          { action: isReady ? "frame-loaded" : "frame-loading", url, from: "playcraft" },
+          "*"
+        );
       },
       { url }
     );
