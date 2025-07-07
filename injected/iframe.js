@@ -12,6 +12,7 @@
 
   // Accept win (window object) and el
   function getPlaywrightLocator(win, el) {
+    console.log(el);
     const selector = win.InjectedScript.generateSelector(el, {}).selector;
     return win.InjectedScript.utils.asLocator("javascript", selector);
   }
@@ -93,6 +94,7 @@
       this.isRecording = false;
       this.recordingStartTime = null;
       this.trackedInputs = new Map(); // Track input elements and their initial values
+      this.userTypedInputs = new Set(); // Track inputs that user actually typed in
       this.lastClickEvent = null; // Track last click to detect double clicks
       this.initialUrl = null;
 
@@ -103,6 +105,7 @@
       this.handleBlur = this.handleBlur.bind(this);
       this.handleKeyDown = this.handleKeyDown.bind(this);
       this.handleChange = this.handleChange.bind(this);
+      this.handleInput = this.handleInput.bind(this);
     }
 
     // Simple helper function to get target element
@@ -163,6 +166,27 @@
     handleClick(e) {
       if (!this.isRecording) return;
 
+      // Process any pending blur events from input elements first
+      // This ensures fill events are recorded before click events
+      // But only for inputs the user actually typed in
+      document.querySelectorAll("input, textarea").forEach((input) => {
+        if (
+          this.trackedInputs.has(input) &&
+          input !== e.target &&
+          this.userTypedInputs.has(input)
+        ) {
+          const initialValue = this.trackedInputs.get(input);
+          const currentValue = input.value || "";
+
+          if (currentValue !== initialValue) {
+            const code = this.generatePlaywrightCode("fill", input, currentValue);
+            const description = `fill ${this.getElementDescription(input)} with "${currentValue}"`;
+            this.sendRecordingStep(code, description);
+            this.trackedInputs.set(input, currentValue);
+          }
+        }
+      });
+
       // Use simplified target element detection
       const element = this.getTargetElement(e);
 
@@ -174,7 +198,7 @@
         this.lastClickEvent.target === element &&
         e.timeStamp - this.lastClickEvent.timeStamp < 500
       ) {
-        // This is a double click
+        // This is a double click - record double click and clear the single click flag
         try {
           const code = this.generatePlaywrightCode("dblclick", element);
           const description = `double click on ${this.getElementDescription(element)}`;
@@ -196,15 +220,29 @@
           const code = this.generatePlaywrightCode(action, element);
           const description = `${action} ${this.getElementDescription(element)}`;
           this.sendRecordingStep(code, description);
+          return; // Don't record click for checkboxes
         } else if (element.type === "radio") {
           const code = this.generatePlaywrightCode("check", element);
           const description = `check ${this.getElementDescription(element)}`;
           this.sendRecordingStep(code, description);
+          return; // Don't record click for radio buttons
         } else if (element.tagName === "SELECT") {
           // Don't record click for select - will be handled by change event
           return;
         } else {
-          // Regular click
+          // Check if this click is on a label or parent element that controls a checkbox/radio
+          const associatedInput = this.findAssociatedInput(element);
+          if (
+            associatedInput &&
+            (associatedInput.type === "checkbox" || associatedInput.type === "radio")
+          ) {
+            // This click will trigger the input change, so don't record the click
+            // The change will be handled by the input's own click event
+            return;
+          }
+
+          // Regular click - record immediately
+          console.log(element);
           const code = this.generatePlaywrightCode("click", element);
           const description = `click on ${this.getElementDescription(element)}`;
           this.sendRecordingStep(code, description);
@@ -254,7 +292,8 @@
       if (!element) return;
 
       // Check if input value changed and record fill event
-      if (this.trackedInputs.has(element)) {
+      // But only if the user actually typed in this input
+      if (this.trackedInputs.has(element) && this.userTypedInputs.has(element)) {
         const initialValue = this.trackedInputs.get(element);
         const currentValue = element.value || "";
 
@@ -263,9 +302,11 @@
           const description = `fill ${this.getElementDescription(element)} with "${currentValue}"`;
           this.sendRecordingStep(code, description);
         }
-
-        this.trackedInputs.delete(element);
       }
+
+      // Clean up tracking for this element
+      this.trackedInputs.delete(element);
+      this.userTypedInputs.delete(element);
     }
 
     handleKeyDown(e) {
@@ -278,8 +319,8 @@
 
       // Handle Enter key in input fields
       if (e.key === "Enter" && this.isInputElement(element)) {
-        // First record fill if value changed
-        if (this.trackedInputs.has(element)) {
+        // First record fill if value changed and user actually typed
+        if (this.trackedInputs.has(element) && this.userTypedInputs.has(element)) {
           const initialValue = this.trackedInputs.get(element);
           const currentValue = element.value || "";
 
@@ -289,9 +330,9 @@
               element
             )} with "${currentValue}"`;
             this.sendRecordingStep(fillCode, fillDescription);
+            // Update tracked value to prevent duplicate fill events
+            this.trackedInputs.set(element, currentValue);
           }
-
-          this.trackedInputs.delete(element);
         }
 
         // Then record the Enter press
@@ -299,10 +340,52 @@
         const pressDescription = `press Enter in ${this.getElementDescription(element)}`;
         this.sendRecordingStep(pressCode, pressDescription);
       }
-      // Handle other special keys
-      else if (
-        ["Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
-      ) {
+      // Handle Tab key - record fill first, then press
+      else if (e.key === "Tab" && this.isInputElement(element)) {
+        // First record fill if value changed and user actually typed
+        if (this.trackedInputs.has(element) && this.userTypedInputs.has(element)) {
+          const initialValue = this.trackedInputs.get(element);
+          const currentValue = element.value || "";
+
+          if (currentValue !== initialValue) {
+            const fillCode = this.generatePlaywrightCode("fill", element, currentValue);
+            const fillDescription = `fill ${this.getElementDescription(
+              element
+            )} with "${currentValue}"`;
+            this.sendRecordingStep(fillCode, fillDescription);
+            // Update tracked value to prevent duplicate fill events
+            this.trackedInputs.set(element, currentValue);
+          }
+        }
+
+        // Then record the Tab press
+        const pressCode = this.generatePlaywrightCode("press", element, "Tab");
+        const pressDescription = `press Tab in ${this.getElementDescription(element)}`;
+        this.sendRecordingStep(pressCode, pressDescription);
+      }
+      // Handle other special keys - record fill first if in input, then press
+      else if (["Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        // For input elements, record fill first if value changed and user actually typed
+        if (
+          this.isInputElement(element) &&
+          this.trackedInputs.has(element) &&
+          this.userTypedInputs.has(element)
+        ) {
+          const initialValue = this.trackedInputs.get(element);
+          const currentValue = element.value || "";
+
+          if (currentValue !== initialValue) {
+            const fillCode = this.generatePlaywrightCode("fill", element, currentValue);
+            const fillDescription = `fill ${this.getElementDescription(
+              element
+            )} with "${currentValue}"`;
+            this.sendRecordingStep(fillCode, fillDescription);
+            // Update tracked value to prevent duplicate fill events
+            this.trackedInputs.set(element, currentValue);
+          }
+        }
+
+        // Then record the key press
         const code = this.generatePlaywrightCode("press", element, e.key);
         const description = `press ${e.key}`;
         this.sendRecordingStep(code, description);
@@ -328,6 +411,21 @@
       }
     }
 
+    handleInput(e) {
+      if (!this.isRecording) return;
+
+      // Use the generic target element detection
+      const element = this.getTargetElement(e);
+
+      if (!element) return;
+
+      // Track that user is actively typing in this input
+      if (this.isInputElement(element)) {
+        this.userTypedInputs.add(element);
+        // Don't record fill immediately on input - wait for blur or key events
+      }
+    }
+
     isInputElement(element) {
       return (
         (element.tagName === "INPUT" &&
@@ -349,6 +447,7 @@
       doc.addEventListener("blur", this.handleBlur, true);
       doc.addEventListener("keydown", this.handleKeyDown, true);
       doc.addEventListener("change", this.handleChange, true);
+      doc.addEventListener("input", this.handleInput, true);
 
       // Add to nested frames
       Array.from(doc.querySelectorAll("iframe, frame")).forEach((frame) => {
@@ -369,6 +468,7 @@
       doc.removeEventListener("blur", this.handleBlur, true);
       doc.removeEventListener("keydown", this.handleKeyDown, true);
       doc.removeEventListener("change", this.handleChange, true);
+      doc.removeEventListener("input", this.handleInput, true);
 
       // Remove from nested frames
       Array.from(doc.querySelectorAll("iframe, frame")).forEach((frame) => {
@@ -389,6 +489,7 @@
       this.recordingStartTime = Date.now();
       this.initialUrl = null;
       this.trackedInputs.clear();
+      this.userTypedInputs.clear();
       this.lastClickEvent = null;
 
       this.addRecordingListeners(document);
@@ -407,6 +508,7 @@
       this.recordingStartTime = null;
       this.initialUrl = null;
       this.trackedInputs.clear();
+      this.userTypedInputs.clear();
       this.lastClickEvent = null;
 
       this.removeRecordingListeners(document);
@@ -421,6 +523,36 @@
         isRecording: this.isRecording,
         startTime: this.recordingStartTime,
       };
+    }
+
+    // Helper method to find associated input for labels or parent elements
+    findAssociatedInput(element) {
+      // Check if it's a label with 'for' attribute
+      if (element.tagName === "LABEL" && element.htmlFor) {
+        return document.getElementById(element.htmlFor);
+      }
+
+      // Check if it's a label containing an input
+      if (element.tagName === "LABEL") {
+        const input = element.querySelector('input[type="checkbox"], input[type="radio"]');
+        if (input) return input;
+      }
+
+      // Check if the element contains a checkbox/radio as a child
+      const childInput = element.querySelector('input[type="checkbox"], input[type="radio"]');
+      if (childInput) return childInput;
+
+      // Check if the element is a child of a label
+      const parentLabel = element.closest("label");
+      if (parentLabel) {
+        if (parentLabel.htmlFor) {
+          return document.getElementById(parentLabel.htmlFor);
+        }
+        const input = parentLabel.querySelector('input[type="checkbox"], input[type="radio"]');
+        if (input) return input;
+      }
+
+      return null;
     }
   }
 
