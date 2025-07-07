@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { start } from "./cli";
 import { config } from "./config";
 

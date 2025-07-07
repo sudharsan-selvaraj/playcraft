@@ -5,8 +5,16 @@ set -e
 cd web
 npm install
 npm run build
-cd ..
+# Remove all folders in basic-languages except javascript and typescript
+BASIC_LANG_DIR="dist/assets/monaco-editor/vs/basic-languages"
+for dir in "$BASIC_LANG_DIR"/*; do
+  case "$(basename "$dir")" in
+    javascript|typescript) ;; # keep
+    *) rm -rf "$dir" ;;
+  esac
+done
 
+cd ..
 # Create the destination directory if it doesn't exist
 mkdir -p lib/public
 

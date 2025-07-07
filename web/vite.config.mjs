@@ -13,6 +13,7 @@ export default defineConfig({
         {
           src: path.resolve(__dirname, 'node_modules/monaco-editor/min/vs'),
           dest: 'assets/monaco-editor',
+          
         },
       ],
     }),
