@@ -5,6 +5,9 @@
   </p>
 </div>
 
+
+[![PlayCraft UI](assets/screenshot.png)](https://npmjs.com/package/playcraft)
+
 ## 🚀 Installation
 
 Get started with Playcraft in seconds:
@@ -21,7 +24,4 @@ Once installed, launch Playcraft from any directory:
 playcraft
 ```
 
-**Ready to craft your first test!** ✨
-
----
 

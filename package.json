@@ -27,13 +27,14 @@
     "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/figlet": "^1.7.0",
     "@types/follow-redirects": "^1.14.4",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^24.0.3",
-    "autoprefixer": "^10.4.21",
-    "typescript": "^5.8.3",
     "@types/socket.io": "^3.0.1",
-    "path-exists-cli": "^2.0.0"
+    "autoprefixer": "^10.4.21",
+    "path-exists-cli": "^2.0.0",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@babel/core": "^7.27.7",
@@ -42,14 +43,15 @@
     "@playwright/test": "^1.53.1",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
+    "figlet": "^1.8.1",
     "express": "^5.1.0",
     "follow-redirects": "^1.15.9",
     "jsdom": "^26.1.0",
+    "path-exists-cli": "^2.0.0",
     "playwright": "^1.53.0",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "socket.io": "^4.8.1",
-    "typed-emitter": "^2.1.0",
-    "path-exists-cli": "^2.0.0"
+    "typed-emitter": "^2.1.0"
   }
 }

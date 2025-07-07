@@ -14,10 +14,3 @@ export function startServer(): Promise<void> {
     });
   });
 }
-
-// Placeholder for SocketIO setup
-// const httpServer = createServer(app);
-// const io = new SocketIOServer(httpServer);
-// io.on("connection", (socket) => {
-//   console.log("Socket connected", socket.id);
-// });
