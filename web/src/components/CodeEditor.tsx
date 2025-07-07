@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import MonacoEditor, {useMonaco, loader} from '@monaco-editor/react';
-import { Play, Square, Copy, Trash2 } from 'lucide-react';
+import { Play, Square, Copy, Trash2, AlignLeft } from 'lucide-react';
 import { Tooltip } from '@mantine/core';
 import { customColors } from '../theme';
 import { ModernSpinner } from './ModernSpinner';
 import { useSocket } from './SocketProvider';
 import { getPlaywrightTypes } from '../apiService';
+import { notifications } from '@mantine/notifications';
 
 
 interface CodeEditorProps {
@@ -36,7 +37,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   //Configure monaco loader to server static files from local instead of CDN
   loader.config({
     paths: {
-      vs: '/assets/monaco-editor/vs',
+      vs:  `${(window as any).SERVER_URL}/assets/monaco-editor/vs`,
     },
   });
 
@@ -62,9 +63,25 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     if (code) {
       try {
         await navigator.clipboard.writeText(code);
-        // Could add a toast notification here if needed
+        notifications.show({
+          title: 'Code Copied',
+          message: 'Code copied to clipboard',
+          color: 'green',
+          autoClose: 3000
+        });
       } catch (err) {
         console.error('Failed to copy code:', err);
+      }
+    }
+  };
+
+  // Format code function
+  const handleFormatCode = async () => {
+    if (editorRef.current && code) {
+      try {
+        await editorRef.current.getAction('editor.action.formatDocument').run();
+      } catch (err) {
+        console.error('Failed to format code:', err);
       }
     }
   };
@@ -265,6 +282,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       tooltip: 'Copy',
       color: customColors.icon[colorScheme],
       onClick: handleCopyCode,
+      disabled: !code || code.trim() === '',
+      active: true,
+    },
+    {
+      key: 'format',
+      icon: AlignLeft,
+      tooltip: 'Format',
+      color: customColors.icon[colorScheme],
+      onClick: handleFormatCode,
       disabled: !code || code.trim() === '',
       active: true,
     },

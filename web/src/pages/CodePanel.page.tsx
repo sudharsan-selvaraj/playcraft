@@ -94,24 +94,24 @@ export function CodePanelPage() {
     };
   }, [socket]);
 
-  useEffect(() => {
-    if (error && error?.error) {
-      notifications.show({
-        title: 'Execution Error',
-        message:  error.error,
-        autoClose: 5000,
-        color: 'red',
-        styles: {
-          description: {
-           whiteSpace:"pre-line"
-          },
-          root:{
-            overflow: "scroll",
-          }
-        },
-      });
-    }
-  }, [error]);
+  // useEffect(() => {
+  //   if (error && error?.error) {
+  //     notifications.show({
+  //       title: 'Execution Error',
+  //       message:  error.error,
+  //       autoClose: 5000,
+  //       color: 'red',
+  //       styles: {
+  //         description: {
+  //          whiteSpace:"pre-line"
+  //         },
+  //         root:{
+  //           overflow: "scroll",
+  //         }
+  //       },
+  //     });
+  //   }
+  // }, [error]);
 
   // Handle code execution
   const handleExecute = useCallback(async () => {
