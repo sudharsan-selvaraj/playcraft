@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
 import { JSDOM } from "jsdom";
-import { chromium } from "playwright-extra";
+import { chromium, firefox, webkit } from "playwright-extra";
+import {Browser, Page} from "playwright";
 import { http, https } from "follow-redirects";
 
 const stealth = require("puppeteer-extra-plugin-stealth")();
@@ -62,12 +63,34 @@ export function updateResourcePaths(html: string, baseUrl: string): string {
   return dom.serialize();
 }
 
-export async function launchBrowser() {
-  chromium.use(stealth);
-  const browser = await chromium.launch({
-    headless: false,
-    args: ["--disable-site-isolation-trials", "--disable-web-security"],
-  });
+export async function launchBrowser(
+  browserType: "chromium" | "firefox" | "webkit" = "chromium"
+): Promise<Page> {
+  let browser: Browser;
+  if(browserType === "chromium") {
+    chromium.use(stealth);
+  }
+  switch(browserType) {
+    case "chromium":
+    default:
+      browser = await chromium.launch({
+        headless: false,
+        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+      });
+      break;
+    case "firefox":
+      browser = await firefox.launch({
+        headless: false,
+        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+      });
+      break;
+    case "webkit":
+      browser = await webkit.launch({
+        headless: false,
+        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+      });
+      break;
+  }
   const context = await browser.newContext({
     viewport: null,
   });

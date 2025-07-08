@@ -14,6 +14,16 @@ async function downloadChromium() {
   await execPromise("playwright install chromium");
 }
 
+async function downloadFirefox() {
+  console.log("Downloading Firefox browser via Playwright...");
+  await execPromise("playwright install firefox");
+}
+
+async function downloadWebKit() {
+  console.log("Downloading Webkit browser via Playwright...");
+  await execPromise("playwright install webkit");
+}
+
 (async () => {
   if (!isPlaywrightInstalled()) {
     await installPlaywright();
@@ -22,4 +32,10 @@ async function downloadChromium() {
   }
   await downloadChromium();
   console.log("Playwright and Chromium installed successfully.");
+
+  await downloadFirefox();
+  console.log("Playwright and Firefox installed successfully.");
+  
+  await downloadWebKit();
+  console.log("Playwright and Webkit installed successfully.");
 })();
