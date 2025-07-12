@@ -9,7 +9,7 @@ export async function start(url: string) {
   }
   await startServer();
   const indexHtml = getIndexHtmlContent();
-  const browserType = process.argv[2] as "chromium" | "firefox" | "webkit" || "chromium";
+  const browserType = process.argv[2] as "chromium" | "edge" | "firefox" | "webkit" || "chromium";
   await sessionService.createSession(url, indexHtml, browserType);
 
   // Beautified ready message
