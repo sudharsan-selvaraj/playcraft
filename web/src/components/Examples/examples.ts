@@ -6,9 +6,11 @@ async function refreshToDoList() {
 }
 
 async function addTodo(todo) {
-  await page.getByRole('textbox', { name: 'What needs to be done?' }).click();
-  await page.getByRole('textbox', { name: 'What needs to be done?' }).fill(todo);
-  await page.getByRole('textbox', { name: 'What needs to be done?' }).press('Enter');
+  const locator = page.getByRole('textbox', { name: 'What needs to be done?' });
+  await expect(locator).toBeEditable();
+  await locator.click();
+  await locator.fill(todo);
+  await locator.press('Enter');
 
   // wait for 1 second
   await new Promise(r => setTimeout(r, 1000));

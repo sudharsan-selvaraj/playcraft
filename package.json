@@ -32,6 +32,7 @@
     "@types/jsdom": "^21.1.7",
     "@types/node": "^24.0.3",
     "@types/socket.io": "^3.0.1",
+    "@types/yargs": "^17.0.33",
     "autoprefixer": "^10.4.21",
     "path-exists-cli": "^2.0.0",
     "typescript": "^5.8.3"
@@ -51,7 +52,9 @@
     "playwright": "^1.53.0",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "robotjs": "^0.6.0",
     "socket.io": "^4.8.1",
-    "typed-emitter": "^2.1.0"
+    "typed-emitter": "^2.1.0",
+    "yargs": "^18.0.0"
   }
 }

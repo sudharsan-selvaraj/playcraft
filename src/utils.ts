@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { chromium, firefox, webkit } from "playwright-extra";
 import {Browser, Page} from "playwright";
 import { http, https } from "follow-redirects";
+import robot from "robotjs";
 
 const stealth = require("puppeteer-extra-plugin-stealth")();
 
@@ -64,35 +65,52 @@ export function updateResourcePaths(html: string, baseUrl: string): string {
 }
 
 export async function launchBrowser(
-  browserType: "chromium" | "firefox" | "webkit" = "chromium"
+  browserType: "chromium" | "firefox" | "edge" | "webkit" = "chromium"
 ): Promise<Page> {
   let browser: Browser;
-  if(browserType === "chromium") {
+  let disableIsolationTrials: string = "--disable-site-isolation-trials";
+  let disableWebSecurity: string = "--disable-web-security";
+  let centerWindowPosition: string = "--window-position=0,0";
+  if (browserType === "chromium") {
     chromium.use(stealth);
   }
-  switch(browserType) {
+  switch (browserType) {
     case "chromium":
     default:
       browser = await chromium.launch({
         headless: false,
-        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
       });
       break;
+    case "edge":
+      browser = await chromium.launch({
+        headless: false,
+        channel: 'msedge',
+        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
+      })
+      break;
+    // Firefox does not support --window-position. Any unknown argument is treated as a URL.
     case "firefox":
       browser = await firefox.launch({
         headless: false,
-        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+        args: [disableIsolationTrials, disableWebSecurity]
       });
       break;
     case "webkit":
       browser = await webkit.launch({
         headless: false,
-        args: ["--disable-site-isolation-trials", "--disable-web-security"],
+        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
       });
       break;
   }
+
+  // Get the screen size using robotjs
+  const screenSize = robot.getScreenSize();
   const context = await browser.newContext({
-    viewport: null,
+    viewport: {
+      width: screenSize.width,
+      height: screenSize.height,
+    },
   });
   const page = await context.newPage();
 

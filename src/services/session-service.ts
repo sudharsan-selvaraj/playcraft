@@ -3,7 +3,7 @@ import { SessionManager } from "../server/session/session-manager";
 import { launchBrowser, updateResourcePaths } from "../utils";
 
 class SessionService {
-  async createSession(url: string, injectedDOM: string = "", browserType: "chromium" | "firefox" | "webkit" = "chromium") {
+  async createSession(url: string, injectedDOM: string = "", browserType: "chromium" | "edge" | "firefox" | "webkit" = "chromium") {
     const page = await launchBrowser(browserType);
     if (injectedDOM) {
       injectedDOM = updateResourcePaths(injectedDOM, url);
