@@ -163,8 +163,13 @@
       }
     }
 
+    static isAssertionMode() {
+      return window.__playcraftModes && window.__playcraftModes.assertion;
+    }
+
     handleClick(e) {
       if (!this.isRecording) return;
+      if (PlaywrightRecorder.isAssertionMode()) return;
 
       // Process any pending blur events from input elements first
       // This ensures fill events are recorded before click events
@@ -254,6 +259,7 @@
 
     handleContextMenu(e) {
       if (!this.isRecording) return;
+      if (PlaywrightRecorder.isAssertionMode()) return;
 
       // Use simplified target element detection
       const element = this.getTargetElement(e);
@@ -559,6 +565,58 @@
   // Create recorder instance
   const recorder = new PlaywrightRecorder();
 
+  // At the top, after the IIFE check:
+  if (!window.__playcraftModes) {
+    window.__playcraftModes = { assertion: false, locator: false };
+  }
+
+  function assertionClickHandler(e) {
+    if (!PlaywrightRecorder.isAssertionMode()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const path = e.composedPath();
+    const el = path && path.length > 0 ? path[0] : null;
+    if (!el) return;
+    const locator = getChainedLocator(el);
+    const text = el.innerText || el.value || "";
+    const attributes = {};
+    if (el.attributes) {
+      for (let attr of el.attributes) {
+        attributes[attr.name] = attr.value;
+      }
+    }
+    postMessageToParent({
+      action: "assertion-candidate",
+      locator,
+      text,
+      tagName: el.tagName,
+      attributes,
+    });
+  }
+
+  function addAssertionListeners(doc) {
+    doc.addEventListener("click", assertionClickHandler, true);
+    Array.from(doc.querySelectorAll("iframe, frame")).forEach((frame) => {
+      try {
+        if (frame.contentDocument) {
+          addAssertionListeners(frame.contentDocument);
+        }
+      } catch (e) {}
+    });
+  }
+
+  function removeAssertionListeners(doc) {
+    doc.removeEventListener("click", assertionClickHandler, true);
+    Array.from(doc.querySelectorAll("iframe, frame")).forEach((frame) => {
+      try {
+        if (frame.contentDocument) {
+          removeAssertionListeners(frame.contentDocument);
+        }
+      } catch (e) {}
+    });
+  }
+
   function forwardLocatorToParent(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -693,6 +751,13 @@
         window.location.reload();
       } else if (e.data.action === "navigate-to" && typeof e.data.url === "string") {
         window.location.assign(e.data.url);
+      } else if (e.data.action === "enable-assertion-mode") {
+        window.__playcraftModes.assertion = true;
+        addAssertionListeners(document);
+        removeLocatorListeners(document);
+      } else if (e.data.action === "disable-assertion-mode") {
+        window.__playcraftModes.assertion = false;
+        removeAssertionListeners(document);
       }
     });
   });
