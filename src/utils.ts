@@ -2,11 +2,16 @@ import path from "path";
 import fs from "fs";
 import { JSDOM } from "jsdom";
 import { chromium, firefox, webkit } from "playwright-extra";
-import {Browser, Page} from "playwright";
+import { Browser, Page } from "playwright";
 import { http, https } from "follow-redirects";
 import robot from "robotjs";
 
 const stealth = require("puppeteer-extra-plugin-stealth")();
+const flags = {
+  disableIsolationTrials: "--disable-site-isolation-trials",
+  disableWebSecurity: "--disable-web-security",
+  centerWindowPosition: "--window-position=0,0"
+}
 
 export function isPlaywrightInstalled() {
   try {
@@ -68,9 +73,6 @@ export async function launchBrowser(
   browserType: "chromium" | "firefox" | "edge" | "webkit" = "chromium"
 ): Promise<Page> {
   let browser: Browser;
-  let disableIsolationTrials: string = "--disable-site-isolation-trials";
-  let disableWebSecurity: string = "--disable-web-security";
-  let centerWindowPosition: string = "--window-position=0,0";
   if (browserType === "chromium") {
     chromium.use(stealth);
   }
@@ -79,27 +81,27 @@ export async function launchBrowser(
     default:
       browser = await chromium.launch({
         headless: false,
-        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
       });
       break;
     case "edge":
       browser = await chromium.launch({
         headless: false,
         channel: 'msedge',
-        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
       })
       break;
     // Firefox does not support --window-position. Any unknown argument is treated as a URL.
     case "firefox":
       browser = await firefox.launch({
         headless: false,
-        args: [disableIsolationTrials, disableWebSecurity]
+        args: [flags.disableIsolationTrials, flags.disableWebSecurity]
       });
       break;
     case "webkit":
       browser = await webkit.launch({
         headless: false,
-        args: [centerWindowPosition, disableIsolationTrials, disableWebSecurity]
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
       });
       break;
   }
