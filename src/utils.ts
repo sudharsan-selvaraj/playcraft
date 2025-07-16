@@ -126,10 +126,7 @@ export function patchHeaders(headers: Record<string, string>) {
     headers["content-security-policy"] &&
     frameAncestorsRegex.test(headers["content-security-policy"])
   ) {
-    headers["content-security-policy"] = headers["content-security-policy"].replace(
-      frameAncestorsRegex,
-      "frame-ancestors *;"
-    );
+    delete headers["content-security-policy"];
     isHeaderUpdated = true;
   }
 
