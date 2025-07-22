@@ -3,6 +3,7 @@ import fs from "fs";
 import { JSDOM } from "jsdom";
 import { chromium, firefox, webkit, Browser, Page } from "playwright";
 import { http, https } from "follow-redirects";
+import { downloadBrowser } from "./scripts/install-deps";
 
 const flags = {
   disableIsolationTrials: "--disable-site-isolation-trials",
@@ -67,9 +68,10 @@ export function updateResourcePaths(html: string, baseUrl: string): string {
 }
 
 export async function launchBrowser(
-  browserType: "chromium" | "firefox" | "edge" | "webkit" = "chromium"
+  browserType: "chromium" | "firefox" | "msedge" | "webkit" = "chromium"
 ): Promise<Page> {
   let browser: Browser;
+  await downloadBrowser(browserType);
   switch (browserType) {
     case "chromium":
     default:
@@ -78,7 +80,7 @@ export async function launchBrowser(
         args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity],
       });
       break;
-    case "edge":
+    case "msedge":
       browser = await chromium.launch({
         headless: false,
         channel: "msedge",
