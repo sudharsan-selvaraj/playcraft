@@ -1,17 +1,15 @@
 import path from "path";
 import fs from "fs";
 import { JSDOM } from "jsdom";
-import { chromium, firefox, webkit } from "playwright-extra";
-import { Browser, Page } from "playwright";
+import { chromium, firefox, webkit, Browser, Page } from "playwright";
 import { http, https } from "follow-redirects";
-import robot from "robotjs";
+import { downloadBrowser } from "./scripts/install-deps";
 
-const stealth = require("puppeteer-extra-plugin-stealth")();
 const flags = {
   disableIsolationTrials: "--disable-site-isolation-trials",
   disableWebSecurity: "--disable-web-security",
-  centerWindowPosition: "--window-position=0,0"
-}
+  centerWindowPosition: "--window-position=0,0",
+};
 
 export function isPlaywrightInstalled() {
   try {
@@ -70,54 +68,50 @@ export function updateResourcePaths(html: string, baseUrl: string): string {
 }
 
 export async function launchBrowser(
-  browserType: "chromium" | "firefox" | "edge" | "webkit" = "chromium"
+  browserType: "chromium" | "firefox" | "msedge" | "webkit" = "chromium"
 ): Promise<Page> {
   let browser: Browser;
-  if (browserType === "chromium") {
-    chromium.use(stealth);
-  }
+  await downloadBrowser(browserType);
   switch (browserType) {
     case "chromium":
     default:
       browser = await chromium.launch({
         headless: false,
-        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity],
       });
       break;
-    case "edge":
+    case "msedge":
       browser = await chromium.launch({
         headless: false,
-        channel: 'msedge',
-        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
-      })
+        channel: "msedge",
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity],
+      });
       break;
     // Firefox does not support --window-position. Any unknown argument is treated as a URL.
     case "firefox":
       browser = await firefox.launch({
         headless: false,
-        args: [flags.disableIsolationTrials, flags.disableWebSecurity]
+        args: [flags.disableIsolationTrials, flags.disableWebSecurity],
       });
       break;
     case "webkit":
       browser = await webkit.launch({
         headless: false,
-        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity]
+        args: [flags.centerWindowPosition, flags.disableIsolationTrials, flags.disableWebSecurity],
       });
       break;
   }
 
-  // Get the screen size using robotjs
-  const screenSize = robot.getScreenSize();
   const context = await browser.newContext({
-    viewport: {
-      width: screenSize.width,
-      height: screenSize.height,
-    },
+    viewport: null,
   });
+  await context.addInitScript(
+    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+  );
   const page = await context.newPage();
-
   return page;
 }
+
 
 export function patchHeaders(headers: Record<string, string>) {
   let isHeaderUpdated = false;
@@ -126,10 +120,7 @@ export function patchHeaders(headers: Record<string, string>) {
     headers["content-security-policy"] &&
     frameAncestorsRegex.test(headers["content-security-policy"])
   ) {
-    headers["content-security-policy"] = headers["content-security-policy"].replace(
-      frameAncestorsRegex,
-      "frame-ancestors *;"
-    );
+    delete headers["content-security-policy"];
     isHeaderUpdated = true;
   }
 

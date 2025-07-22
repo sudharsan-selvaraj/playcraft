@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   Square,
   SquareDashedMousePointer,
+  Eye,
 } from 'lucide-react';
 import {
   ActionIcon,
@@ -27,7 +28,7 @@ import { navigateToUrl, testLocator } from '../apiService';
 import { useSettings } from '../components/SettingsContext';
 import { SettingsModal } from '../components/SettingsModal';
 import { customColors } from '../theme';
-
+import { AssertionModal, AssertionCandidate } from '../components/AssertionModal';
 
 
 const DEVICES = [
@@ -79,6 +80,11 @@ export function AutomationFrame() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSteps, setRecordingSteps] = useState<string[]>([]);
 
+  // Assertion recording state
+  const [assertionMode, setAssertionMode] = useState(false);
+  const [assertionModalOpen, setAssertionModalOpen] = useState(false);
+  const [assertionCandidate, setAssertionCandidate] = useState<AssertionCandidate | null>(null);
+
   const sandboxValue = settings.allowIframeSandboxing
     ? 'allow-scripts allow-forms allow-popups allow-same-origin allow-modals allow-presentation'
     : undefined;
@@ -125,12 +131,22 @@ export function AutomationFrame() {
             );
           }
           break;
+        case 'assertion-candidate': {
+          setAssertionModalOpen(true);
+          setAssertionCandidate({
+            locator: event.data.locator,
+            text: event.data.text || '',
+            tagName: event.data.tagName || '',
+            attributes: event.data.attributes || {},
+          });
+          break;
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isRecording]);
+  }, [isRecording, assertionMode]);
 
   // Navigation actions: send message to iframe
   const sendNavigationAction = (action: 'back' | 'forward' | 'refresh') => {
@@ -238,6 +254,28 @@ export function AutomationFrame() {
         '*'
       );
     }
+  };
+
+  // Assertion mode toggle
+  const toggleAssertionMode = () => {
+    setAssertionMode((prev) => {
+      const next = !prev;
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          { action: next ? 'enable-assertion-mode' : 'disable-assertion-mode' },
+          '*'
+        );
+      }
+      return next;
+    });
+  };
+
+  // Handler to add assertion code to steps
+  const handleAddAssertion = (code: string, description: string) => {
+    setRecordingSteps((prev) => [...prev, code]);
+    window.postMessage({ action: 'insert-code', code }, '*');
+    setAssertionModalOpen(false);
+    setAssertionCandidate(null);
   };
 
   // Handle iframe load and set up message listener
@@ -404,6 +442,36 @@ export function AutomationFrame() {
               {isRecording ? <Square size={18} /> : <Circle size={18} />}
             </div>
           </Tooltip>
+
+          {/* Assertion Mode Button */}
+          {isRecording && (
+            <Tooltip label={assertionMode ? 'Exit Assertion Mode' : 'Assertion Mode'} position="bottom">
+              <div
+                onClick={toggleAssertionMode}
+                style={{
+                  marginLeft: 4,
+                  padding: 8,
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: assertionMode ? customColors.primary[colorScheme] : customColors.icon[colorScheme],
+                  transition: 'color 0.15s, background 0.15s',
+                  background: 'transparent',
+                  border: assertionMode ? `1.5px solid ${customColors.primary[colorScheme]}` : 'none',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = customColors.iconBg[colorScheme];
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <Eye size={20} />
+              </div>
+            </Tooltip>
+          )}
 
           <Tooltip label="Element Inspector" position="bottom">
             <div
@@ -805,6 +873,13 @@ export function AutomationFrame() {
         </Button>
       </Modal>
       <SettingsModal opened={settingsOpen} onClose={closeSettings} />
+      {/* Assertion Modal */}
+      <AssertionModal
+        opened={assertionModalOpen}
+        onClose={() => setAssertionModalOpen(false)}
+        candidate={assertionCandidate}
+        onAddAssertion={handleAddAssertion}
+      />
     </div>
   );
 }

@@ -15,7 +15,6 @@ const DEFAULT_APP_URL = "https://www.playwright.dev/";
 export class Session {
   private _id: string;
   private code: string = "";
-  private appUrl: string = "";
   private parentUrl: string = "";
   private codeExecutor: CodeExecutor;
   private eventHandlers: Record<string, any> = {};
@@ -25,7 +24,12 @@ export class Session {
   private lastError: { error: string; line: number } | null = null;
   private currentStepNumber: number | null = null;
 
-  constructor(private page: Page, private injectedDOM: string, private serverUrl: string) {
+  constructor(
+    private page: Page,
+    private injectedDOM: string,
+    private serverUrl: string,
+    private appUrl: string = DEFAULT_APP_URL
+  ) {
     this._id = crypto.randomUUID();
     this.codeExecutor = new CodeExecutor({
       session: this,
@@ -198,7 +202,7 @@ export class Session {
     appUrl?: string,
     options?: { waitUntil?: "networkidle" | "domcontentloaded"; referer?: string; timeout?: number }
   ) {
-    this.appUrl = appUrl || DEFAULT_APP_URL;
+    this.appUrl = appUrl || this.appUrl;
     /**
      * If the frame is already loaded, we can use it to load the application
      * else, this is the first time we are loading the application
@@ -210,7 +214,7 @@ export class Session {
         this.parentUrl = this.serverUrl;
         await this.page.goto(this.parentUrl, { waitUntil: "load" });
         await this.page.waitForSelector(IFRAME_SELECTOR);
-        await this.frame?.goto("https://www.playwright.dev/", options);
+        await this.frame?.goto(this.appUrl, options);
       } catch (err) {
         console.log(err);
       }

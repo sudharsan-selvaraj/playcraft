@@ -24,6 +24,38 @@ Once installed, launch Playcraft from any directory:
 playcraft
 ```
 
+### 🎛️ CLI Options
+
+Playcraft supports various command-line options for customization:
+
+```bash
+# Start with a specific browser
+playcraft --browser firefox
+playcraft -b webkit
+
+# Start with a specific URL
+playcraft --url https://example.com
+playcraft -u https://playwright.dev
+
+# Start on a custom port
+playcraft --port 8080
+playcraft -p 9000
+
+# Combine options
+playcraft --browser firefox --url https://example.com --port 8080
+playcraft -b webkit -u https://playwright.dev -p 9000
+
+# Show help
+playcraft --help
+playcraft -h
+
+# Show version
+playcraft --version
+playcraft -v
+```
+
+**Available browsers:** `chromium` (default), `firefox`, `webkit`, `msedge`
+
 ## ✨ Features
 
 - 🖥️ Visual code editor & live browser preview
@@ -33,6 +65,7 @@ playcraft
 - 🎬 Example scripts to get started fast
 - 🧩 Works with any web app URL
 - 🔍 Built-in element inspector & test recorder (just like Playwright codegen)
+- 🌐 Multi-browser support (Chromium, Firefox, WebKit, Edge)
 
 ---
 

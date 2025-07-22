@@ -9,20 +9,25 @@ async function installPlaywright() {
   await execPromise("npm install playwright");
 }
 
-async function downloadBrowser(browser: string) {
+export async function downloadBrowser(browser: string) {
   console.log(`Downloading ${browser} browser via Playwright...`);
   await execPromise(`playwright install ${browser}`);
-  console.log(`Playwright and ${browser.charAt(0).toUpperCase() + browser.slice(1)} installed successfully.`);
+  console.log(
+    `Playwright and ${browser.charAt(0).toUpperCase() + browser.slice(1)} installed successfully.`
+  );
 }
 
-(async () => {
-  if (!isPlaywrightInstalled()) {
-    await installPlaywright();
-  } else {
-    console.log("Playwright is already installed.");
-  }
+if (require.main === module) {
+  (async () => {
+    if (!isPlaywrightInstalled()) {
+      await installPlaywright();
+    } else {
+      console.log("Playwright is already installed.");
+    }
 
-  for (const browser of ["chromium", "firefox", "webkit"]) {
-    await downloadBrowser(browser);
-  }
-})();
+    for (const browser of ["chromium"]) {
+      await downloadBrowser(browser);
+    }
+  })();
+}
+
