@@ -4,16 +4,17 @@ import { launchBrowser, updateResourcePaths } from "../utils";
 
 class SessionService {
   async createSession(
-    url: string,
+    serverUrl: string,
+    appUrl: string | undefined,
     injectedDOM: string = "",
     browserType: "chromium" | "msedge" | "firefox" | "webkit" = "chromium"
   ) {
     const page = await launchBrowser(browserType);
     if (injectedDOM) {
-      injectedDOM = updateResourcePaths(injectedDOM, url);
+      injectedDOM = updateResourcePaths(injectedDOM, serverUrl);
     }
 
-    const session = new Session(page, injectedDOM, url);
+    const session = new Session(page, injectedDOM, serverUrl, appUrl);
     await session.init();
     SessionManager.add(session.id, session);
     return session.id;

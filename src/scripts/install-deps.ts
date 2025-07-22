@@ -17,14 +17,17 @@ export async function downloadBrowser(browser: string) {
   );
 }
 
-(async () => {
-  if (!isPlaywrightInstalled()) {
-    await installPlaywright();
-  } else {
-    console.log("Playwright is already installed.");
-  }
+if (require.main === module) {
+  (async () => {
+    if (!isPlaywrightInstalled()) {
+      await installPlaywright();
+    } else {
+      console.log("Playwright is already installed.");
+    }
 
-  for (const browser of ["chromium"]) {
-    await downloadBrowser(browser);
-  }
-})();
+    for (const browser of ["chromium"]) {
+      await downloadBrowser(browser);
+    }
+  })();
+}
+
