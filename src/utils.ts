@@ -99,15 +99,17 @@ export async function launchBrowser(
       });
       break;
   }
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  const screenSize = await page.evaluate(() => window.screen);
-  await page.setViewportSize({
-    width: screenSize.width,
-    height: screenSize.height,
+
+  const context = await browser.newContext({
+    viewport: null,
   });
+  await context.addInitScript(
+    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+  );
+  const page = await context.newPage();
   return page;
 }
+
 
 export function patchHeaders(headers: Record<string, string>) {
   let isHeaderUpdated = false;
